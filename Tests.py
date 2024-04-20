@@ -1,12 +1,15 @@
 import random
 import sys
+import time
 from enum import Enum
+import math
 
 import numpy as np
 import pygame
 
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
+from helpers import QuadTreeNode, Rectangle
 
 
 class Tasks(Enum):
@@ -36,6 +39,11 @@ class Ant:
         self.current_task = Tasks.FindHome
         self.found_home = False
         self.detected_objects = []
+        self.fov_angle = 60
+        self.fov_length = 80
+        self.max_speed = 1
+
+
 
         self.acceleration = [0, 0]
         self.velocity = [speed * math.cos(self.current_direction ), speed * math.sin(self.current_direction )]
@@ -78,32 +86,33 @@ class Ant:
             self.sensors[i].y = self.position[1] + self.sensor_dst * math.sin(angle)
 
     def detect_objects(self, objects):
+
+        start_time = time.time()  # Start measuring time
+        detected = self.objects_within_field_of_view(objects)
         self.detected_objects = []
         # Reset sensor data
         for i in range(3):
             self.sensor_data[i] = 0.0
 
-        # Detect objects within sensor range
-        for i, sensor_pos in enumerate(self.sensors):
-            # Calculate angle of sensor relative to ant's direction
-            angle_offset = (i - 1) * self.sensor_spacing
-            angle = self.current_direction + angle_offset
-            if -math.pi / 6 <= angle_offset <= math.pi / 6:
-                for obj_pos in objects:
-                    # Calculate angle between sensor and object
-                    obj_angle = math.atan2(obj_pos.y - self.y, obj_pos.x - self.x)
-                    # Calculate difference in angles
-                    angle_diff = abs(obj_angle - angle)
-                    # Wrap angle difference to range [-pi, pi]
-                    angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
-                    # Check if object is within detection angle range
-                    if abs(angle_diff) < math.pi / 3:
-                        # Calculate distance between sensor and object
-                        dist = sensor_pos.distance_to(obj_pos)
-                        if dist < self.sensor_size:
-                            self.detected_objects.append(obj_pos)
-                            # Update sensor data based on object proximity
-                            self.sensor_data[i] = max(self.sensor_data[i], 1.0 - dist / self.sensor_size)
+
+        # Iterate through objects only once
+        for obj_pos in detected:
+            # Calculate angle between sensor and object
+            obj_angle = math.atan2(obj_pos.y - self.y, obj_pos.x - self.x)
+            # Wrap object angle to the range [-pi, pi]
+            obj_angle = (obj_angle + math.pi) % (2 * math.pi) - math.pi
+            # Check if object angle falls within detection range
+            for i, sensor_pos in enumerate(self.sensors):
+
+                # Calculate distance between sensor and object
+                dist = sensor_pos.distance_to(obj_pos)
+                if dist < self.sensor_size:
+                    self.detected_objects.append(obj_pos)
+                    # Update sensor data based on object proximity
+                    self.sensor_data[i] = max(self.sensor_data[i], 1.0 - dist / self.sensor_size)
+        end_time = time.time()  # Stop measuring time
+        execution_time = end_time - start_time
+        print("detect_objects execution time:", execution_time, "seconds")
 
     def search_for_food(self, steps):
         print(f"Ant's position: ({self.x}, {self.y})")
@@ -115,6 +124,7 @@ class Ant:
         return (steering[0] * 0.05, steering[1] * 0.05)
 
     def periodic_direction_update(self, pheromones, stats, boundaries):
+        start_time = time.time()  # Start measuring time
         target = None
 
         # Check if Food in front of Ant
@@ -149,7 +159,9 @@ class Ant:
         if target is None:
             print("Target is None")
             self.acceleration = [self.speed * math.cos(random.uniform(0, 2 * math.pi)), self.speed * math.sin(random.uniform(0, 2 * math.pi))]
-
+            end_time = time.time()  # Stop measuring time
+            execution_time = end_time - start_time
+            print("periodic_direction_update execution time:", execution_time, "seconds")
             return
 
         # Calculate steering force towards target
@@ -168,9 +180,18 @@ class Ant:
             # If out of bounds, reverse the direction
             self.acceleration = [-self.acceleration[0], -self.acceleration[1]]
 
+        end_time = time.time()  # Stop measuring time
+        execution_time = end_time - start_time
+        print("periodic_direction_update execution time:", execution_time, "seconds")
+
     def update_position(self, boundaries):
+        start_time = time.time()  # Start measuring time
         # Update velocity based on acceleration
         self.velocity = (self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1])
+
+        speed = math.sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
+        if speed > self.max_speed:
+            self.velocity = (self.velocity[0] * self.max_speed / speed, self.velocity[1] * self.max_speed / speed)
 
         # Update position based on velocity
         new_pos_x = self.position[0] + self.velocity[0]
@@ -187,6 +208,10 @@ class Ant:
         # Reset acceleration
         self.acceleration = [0, 0]
 
+        end_time = time.time()  # Stop measuring time
+        execution_time = end_time - start_time
+        print("update_position execution time:", execution_time, "seconds")
+
     def new_position(self, boundaries):
 
         old_pos_x, old_pos_y = self.position[0], self.position[1]
@@ -201,11 +226,6 @@ class Ant:
             new_velocity_x = velocity_normalized[0] + self.acceleration[0]
             new_velocity_y = velocity_normalized[1] + self.acceleration[1]
 
-            # Update position
-            new_translation_x = self.position[0] + new_velocity_x * 1
-            new_translation_y = self.position[1] + new_velocity_y * 1
-
-
         # Reset acceleration
         self.acceleration = [0,0]
 
@@ -216,6 +236,30 @@ class Ant:
         rotation_angle = math.atan2(dy, dx) + math.pi / 2.0
         # transform.rotation = Quat((0, 0, math.sin(rotation_angle / 2), math.cos(rotation_angle / 2)))
 
+    def calculate_field_of_view(self):
+        angle1 = self.current_direction - math.radians(self.fov_angle)
+        angle2 = self.current_direction + math.radians(self.fov_angle)
+        fov_point1 = (self.position[0] + self.fov_length * math.cos(angle1), self.position[1] + self.fov_length * math.sin(angle1))
+        fov_point2 = (self.position[0] + self.fov_length * math.cos(angle2), self.position[1] + self.fov_length * math.sin(angle2))
+        return [self.position, fov_point1, fov_point2]
+
+    def objects_within_field_of_view(self, objects):
+        objects_in_range = []
+
+        for obj in objects:
+            # Calculate angle between ant's position and object
+            obj_angle = math.atan2(obj.y - self.position[1], obj.x - self.position[0])
+            # Calculate difference in angles between the ant's direction and object's angle
+            angle_diff = abs(obj_angle - self.current_direction)
+            # Check if the object is within the field of view angle
+            if angle_diff <= math.radians(self.fov_angle ):  # Assuming the field of view angle is 40 degrees
+                # Calculate distance between ant and object
+                dist = math.sqrt((obj.x - self.position[0]) ** 2 + (obj.y - self.position[1]) ** 2)
+                # Check if the object is within the range of the ant's vision
+                if dist <= self.fov_length:  # Assuming the maximum range of vision is 100 units
+                    objects_in_range.append(obj)
+
+        return objects_in_range
 
 
     def drop_pheromones(self):
@@ -225,8 +269,8 @@ class Ant:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundHome)
 
 
-# Example usage
-import math
+
+
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -237,77 +281,23 @@ ant = Ant()
 ant.search_for_food(100)
 
 
-def draw(screen, ant, objects):
-    # Draw ant
-    pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), radius=10)
-
-    # Draw objects
-    for obj in objects:
-        pygame.draw.circle(screen, RED, (int(obj.x), int(obj.y)), radius=2)
-
-    # Draw sensors and lines to detected objects
-    for i, sensor_pos in enumerate(ant.sensors):
-        # Calculate angle offset for sensor position
-        angle_offset = (i - 1) * ant.sensor_spacing
-        angle = ant.current_direction + angle_offset
-
-        # Calculate end position of the sensor
-        end_x = sensor_pos.x + ant.sensor_dst * math.cos(angle)
-        end_y = sensor_pos.y + ant.sensor_dst * math.sin(angle)
-
-        # Draw line representing the sensor direction
-        pygame.draw.line(screen, BLUE, (int(sensor_pos.x), int(sensor_pos.y)), (int(end_x), int(end_y)))
-
-        # Detect objects and draw lines from detected objects to the ant
-        ant.detect_objects(objects)
-        for obj_pos in ant.detected_objects:
-            pygame.draw.line(screen, RED, (int(sensor_pos.x), int(sensor_pos.y)),
-                             (int(obj_pos.x), int(obj_pos.y)), 2)
-
-    # Draw sensors and lines to detected objects
-    for i, sensor_pos in enumerate(ant.sensors):
-        # Calculate angle offset for sensor position
-        angle_offset = (i - 1) * ant.sensor_spacing
-        angle = ant.current_direction + angle_offset
-
-        # Calculate end position of the sensor
-        end_x = sensor_pos.x + ant.sensor_dst * math.cos(angle)
-        end_y = sensor_pos.y + ant.sensor_dst * math.sin(angle)
-
-        # Draw line representing the sensor direction
-        pygame.draw.line(screen, BLUE, (int(sensor_pos.x), int(sensor_pos.y)), (int(end_x), int(end_y)))
-
-        # Detect objects and draw lines from detected objects to the ant
-        ant.detect_objects(objects)
-        for obj_pos in ant.detected_objects:
-            pygame.draw.line(screen, RED, (int(sensor_pos.x), int(sensor_pos.y)),
-                             (int(obj_pos.x), int(obj_pos.y)), 2)
-
-    # Draw lines connecting sensors to form a visual field
-    for i, sensor_pos in enumerate(ant.sensors):
-        # Calculate future direction of the sensor
-        future_direction = ant.current_direction + (i - 1) * ant.sensor_spacing
-
-        # Calculate end position based on future direction
-        end_x = sensor_pos.x + ant.sensor_dst * math.cos(future_direction)
-        end_y = sensor_pos.y + ant.sensor_dst * math.sin(future_direction)
-
-        # Draw line representing the sensor direction
-        pygame.draw.line(screen, BLUE, (int(sensor_pos.x), int(sensor_pos.y)), (int(end_x), int(end_y)))
-
-
 def main():
     width = 900
     height = 900
     pygame.init()
     screen = pygame.display.set_mode((width, height))
     pygame.display.set_caption("Ant Walking")
-
-    ant = Ant()
     clock = pygame.time.Clock()
-    objects = []
-    ants = [Ant() for _ in range(200)]
     boundaries = [(0, 0), (width, height)]
+    quad = QuadTreeNode(Rectangle(0, 0, width, height))
+
+    ants = [Ant() for _ in range(1)]
+    objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(200)]
+
+    for obj in objects:
+        quad.insert(obj)
+
+
 
     while True:
         for event in pygame.event.get():
@@ -315,28 +305,28 @@ def main():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                objects.append(pygame.Vector2(pos[0], pos[1]))
+                mx, my = pygame.mouse.get_pos()
+                objects.append(pygame.Vector2(mx,my))
 
-        # Randomize target position
-        screen.fill(WHITE)
+        screen.fill((255, 255, 255))
+        for obj in objects:
+            pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 2)
+
         for ant in ants:
-            # ant.handle_movement()
 
-
-            #
-            ant.periodic_direction_update(None,None,boundaries)
-            # ant.new_position(boundaries)
-
+            ant.periodic_direction_update(None, None, boundaries)
             ant.update_position(boundaries)
             ant.update_sensors()
             ant.detect_objects(objects)
+            fov = ant.calculate_field_of_view()
+            pygame.draw.polygon(screen, BLUE, fov, 1)
+            pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 5)
 
-            draw(screen, ant, objects)
-
+            for obj in ant.detected_objects:
+                pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
+                                 (int(obj.x), int(obj.y)), 2)
         pygame.display.flip()
         clock.tick(60)
-
 
 if __name__ == "__main__":
     main()
