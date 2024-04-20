@@ -15,8 +15,7 @@ class Ant:
         """Birth of an ant in its nest
 
         """
-        self.posx = x
-        self.posy = y
+        self.pos = [x,y]
         self.velocity = 12
         self.acceleration = 12
         self.task = Tasks.FindHome
