@@ -66,7 +66,12 @@ class Ant:
         angle += random.uniform(-self.steering, self.steering)
         return angle
 
+
+
     def handle_movement(self):
+        """
+        Handles the movement of the ant, updating its direction and position. OLD VERSION, USE PERIODIC MOVEMENT INSTEAD
+        """
         # Change direction after a certain number of steps based on wandering strength
         if self.wandering_strength == 0:
             return
@@ -83,11 +88,17 @@ class Ant:
         self.y += self.speed * math.sin(self.current_direction)
 
     def interpolate_direction(self, new_direction):
+        """
+        Function that helps smooth change of direction. Makes it less abrupt.
+        """
         # Smoothly transition to the new direction using linear interpolation
         alpha = 0.1  # Adjust this value for smoother or faster transitions
         self.current_direction = (1 - alpha) * self.current_direction + alpha * new_direction
 
     def update_sensors(self):
+        """
+        updates the sensor distance and angle.
+        """
         # Calculate sensor positions based on current direction
         for i in range(3):
             angle_offset = (i - 1) * self.sensor_spacing
@@ -96,6 +107,10 @@ class Ant:
             self.sensors[i].y = self.y + self.sensor_dst * math.sin(angle)
 
     def detect_objects(self, objects):
+        """
+        checks if objects are within the sensor range and if so add them to detected object array.
+        Objects range from pheromones to colony and food
+        """
         self.detected_objects = []
         # Reset sensor data
         for i in range(3):
