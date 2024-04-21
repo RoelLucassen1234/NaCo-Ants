@@ -7,9 +7,10 @@ import math
 import numpy as np
 import pygame
 
+from Environment import Environment
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
-from helpers import  SpatialHashGrid
+from helpers import SpatialHashGrid
 
 
 class Tasks(Enum):
@@ -42,10 +43,8 @@ class Ant:
         self.max_speed = 1
         self.rotation = 0
 
-
-
         self.acceleration = [0, 0]
-        self.velocity = [speed * math.cos(self.current_direction ), speed * math.sin(self.current_direction )]
+        self.velocity = [speed * math.cos(self.current_direction), speed * math.sin(self.current_direction)]
         self.pheromoneStrenth = 20
 
     def random_steering(self):
@@ -54,27 +53,6 @@ class Ant:
         # Adjust the angle to make the movement less jittery
         angle += random.uniform(-self.steering, self.steering)
         return angle
-
-    # def handle_movement(self):
-    #     # Change direction after a certain number of steps based on wandering strength
-    #     if self.wandering_strength == 0:
-    #         return
-    #     if self.direction_counter <= 0:
-    #         # Generate a random change in direction within the limit of 90 degrees
-    #         new_direction = self.random_steering()
-    #         self.interpolate_direction(new_direction)
-    #         self.direction_counter = int(random.expovariate(1 / self.wandering_strength))
-    #     else:
-    #         self.direction_counter -= 1
-    #
-    #     # Update the position based on the current direction and speed
-    #     self.position[0] += self.speed * math.cos(self.current_direction)
-    #     self.position[1] += self.speed * math.sin(self.current_direction)
-
-    # def interpolate_direction(self, new_direction):
-    #     # Smoothly transition to the new direction using linear interpolation
-    #     alpha = 0.1  # Adjust this value for smoother or faster transitions
-    #     self.current_direction = (1 - alpha) * self.current_direction + alpha * new_direction
 
     def update_sensor_positions(self):
         for i, sensor_pos in enumerate(self.sensors):
@@ -102,7 +80,6 @@ class Ant:
                         self.detected_objects.append(obj_pos)
 
         return self.detected_objects
-
 
     def get_steering_force(target, current, velocity):
         desired = (target[0] - current[0], target[1] - current[1])
@@ -134,10 +111,12 @@ class Ant:
         return None
 
     def set_random_direction(self):
-        random_angle = random.uniform(0, 2 * math.pi)
+        # current_direction = math.atan2(self.velocity[1], self.velocity[0])
+        random_angle = random.uniform(self.current_direction - math.pi / 2, self.current_direction + math.pi / 2)
         self.acceleration = [self.speed * math.cos(random_angle),
                              self.speed * math.sin(random_angle)]
         self.update_rotation()
+
     def calculate_steering_force(self, target):
         steering_force = self.get_steering_force(target, self.position, self.velocity)
         steering_factor = random.uniform(0.4, 0.7)
@@ -207,8 +186,7 @@ class Ant:
             new_velocity_y = velocity_normalized[1] + self.acceleration[1]
 
         # Reset acceleration
-        self.acceleration = [0,0]
-
+        self.acceleration = [0, 0]
 
         # Update rotation
         dx = self.position[0] - old_pos_x
@@ -217,13 +195,12 @@ class Ant:
         # transform.rotation = Quat((0, 0, math.sin(rotation_angle / 2), math.cos(rotation_angle / 2)))
 
     def drop_pheromones(self):
-        if self.current_task == Tasks.FindHome & self.found_home == True:
+        if self.current_task == Tasks.FindHome and self.found_home == True:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood)
-        elif self.current_task == Tasks.FindFood & self.found_home == True:
+        elif self.current_task == Tasks.FindHome and self.found_home == False:
+            return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood)
+        elif self.current_task == Tasks.FindFood and self.found_home == True:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundHome)
-
-
-
 
 
 BLACK = (0, 0, 0)
@@ -235,20 +212,22 @@ ant = Ant()
 
 
 def main():
+    # env = Environment(100, "okay")
+    # env.run_simulation()
     width = 900
     height = 900
+    k = 0
     pygame.init()
     screen = pygame.display.set_mode((width, height))
+    pheromones = []
     pygame.display.set_caption("Ant Walking")
     clock = pygame.time.Clock()
     boundaries = [(0, 0), (width, height)]
     spatial_hash_grid = SpatialHashGrid(cell_size=200)
-    ants = [Ant() for _ in range(400)]
-    objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(400)]
+    ants = [Ant() for _ in range(100)]
+    objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(0)]
     for obj in objects:
         spatial_hash_grid.add_object(obj)
-
-
 
     while True:
         for event in pygame.event.get():
@@ -257,27 +236,59 @@ def main():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = pygame.mouse.get_pos()
-                objects.append(pygame.Vector2(mx,my))
+                objects.append(pygame.Vector2(mx, my))
+                spatial_hash_grid.add_object(pygame.Vector2(mx, my))
 
-        screen.fill((255, 255, 255))
+        screen.fill((0, 0, 0))
         for obj in objects:
             pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
 
-        for ant in ants:
+        # reduce potentcy of pheromones
+        for pher in pheromones:
+            pher.update_life()
+            if pher.life <= 0:
+                pheromones.remove(pher)
 
+        # ants doing ant stuff
+        for ant in ants:
             ant.periodic_direction_update(None, None, boundaries)
             ant.update_position(boundaries)
             ant.detect_objects(spatial_hash_grid)
 
+        if k == 0:
+            for ant in ants:
+                pheromones.append(ant.drop_pheromones())
+
+
+        #DRAWING ANTS
+        for ant in ants:
             pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 1)
 
             for obj in ant.detected_objects:
                 pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
                                  (int(obj.x), int(obj.y)), 1)
 
+        #Drawing Pheromones
+        for p in pheromones:
+            alpha = int((255 * p.life) / p.max_life)
+            color = pygame.Color(165,42,42)
+            color.a = alpha # White color with alpha channel
+
+            # Draw the pheromone as a rectangle with adjusted color opacity
+            rect = pygame.Rect(int(p.position[0]), int(p.position[1]), p.width, p.height)
+            surface = pygame.Surface((rect.width, rect.height))
+            surface.set_alpha(alpha)
+            surface.fill(color)
+            screen.blit(surface, rect)
+
 
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(100)
+        k += 1
+        if k > 5:
+            k = 0
+
+
 
 if __name__ == "__main__":
     main()

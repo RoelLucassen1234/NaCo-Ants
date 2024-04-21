@@ -51,3 +51,9 @@ class SpatialHashGrid:
         # Convert the list of dictionaries to a list of pygame.Vector2 objects
         nearby_objects = [pygame.Vector2(obj['x'], obj['y']) for obj in nearby_objects]
         return nearby_objects
+
+    def get_all_objects(self):
+        all_objects = []
+        for cell_objects in self.grid.values():
+            all_objects.extend(cell_objects)
+        return all_objects
