@@ -18,7 +18,7 @@ class Tasks(Enum):
 
 
 class Ant:
-    def __init__(self, x=100, y=100, speed=0.2, steering=5, wandering_strength=30):
+    def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1):
         self.x = x
         self.y = y
         self.position = np.zeros(2)
@@ -29,8 +29,8 @@ class Ant:
         self.wandering_strength = wandering_strength
         self.direction_counter = 0
         self.current_direction = self.random_steering()
-        self.max_direction_change = math.pi / 3
-        self.sensor_size = 100
+        self.max_direction_change = math.pi / 360
+        self.sensor_size = 60
         self.sensor_dst = 10
         self.sensor_spacing = 1
         self.antenna_dst = 20
@@ -39,9 +39,8 @@ class Ant:
         self.current_task = Tasks.FindHome
         self.found_home = False
         self.detected_objects = []
-        self.fov_angle = 60
-        self.fov_length = 80
         self.max_speed = 1
+        self.rotation = 0
 
 
 
@@ -56,133 +55,116 @@ class Ant:
         angle += random.uniform(-self.steering, self.steering)
         return angle
 
-    def handle_movement(self):
-        # Change direction after a certain number of steps based on wandering strength
-        if self.wandering_strength == 0:
-            return
-        if self.direction_counter <= 0:
-            # Generate a random change in direction within the limit of 90 degrees
-            new_direction = self.random_steering()
-            self.interpolate_direction(new_direction)
-            self.direction_counter = int(random.expovariate(1 / self.wandering_strength))
-        else:
-            self.direction_counter -= 1
+    # def handle_movement(self):
+    #     # Change direction after a certain number of steps based on wandering strength
+    #     if self.wandering_strength == 0:
+    #         return
+    #     if self.direction_counter <= 0:
+    #         # Generate a random change in direction within the limit of 90 degrees
+    #         new_direction = self.random_steering()
+    #         self.interpolate_direction(new_direction)
+    #         self.direction_counter = int(random.expovariate(1 / self.wandering_strength))
+    #     else:
+    #         self.direction_counter -= 1
+    #
+    #     # Update the position based on the current direction and speed
+    #     self.position[0] += self.speed * math.cos(self.current_direction)
+    #     self.position[1] += self.speed * math.sin(self.current_direction)
 
-        # Update the position based on the current direction and speed
-        self.position[0] += self.speed * math.cos(self.current_direction)
-        self.position[1] += self.speed * math.sin(self.current_direction)
+    # def interpolate_direction(self, new_direction):
+    #     # Smoothly transition to the new direction using linear interpolation
+    #     alpha = 0.1  # Adjust this value for smoother or faster transitions
+    #     self.current_direction = (1 - alpha) * self.current_direction + alpha * new_direction
 
-    def interpolate_direction(self, new_direction):
-        # Smoothly transition to the new direction using linear interpolation
-        alpha = 0.1  # Adjust this value for smoother or faster transitions
-        self.current_direction = (1 - alpha) * self.current_direction + alpha * new_direction
-
-    def update_sensors(self):
-        # Calculate sensor positions based on current direction
-        for i in range(3):
+    def update_sensor_positions(self):
+        for i, sensor_pos in enumerate(self.sensors):
             angle_offset = (i - 1) * self.sensor_spacing
-            angle = self.current_direction + angle_offset
-            self.sensors[i].x = self.position[0] + self.sensor_dst * math.cos(angle)
-            self.sensors[i].y = self.position[1] + self.sensor_dst * math.sin(angle)
+            angle = self.current_direction + angle_offset + self.rotation
+            sensor_pos.x = self.position[0] + self.sensor_dst * math.cos(angle)
+            sensor_pos.y = self.position[1] + self.sensor_dst * math.sin(angle)
 
     def detect_objects(self, objects):
-
-        start_time = time.time()  # Start measuring time
-        detected = self.objects_within_field_of_view(objects)
         self.detected_objects = []
-        # Reset sensor data
-        for i in range(3):
-            self.sensor_data[i] = 0.0
 
+        # Update sensor positions based on ant's direction
+        self.update_sensor_positions()
 
-        # Iterate through objects only once
-        for obj_pos in detected:
-            # Calculate angle between sensor and object
-            obj_angle = math.atan2(obj_pos.y - self.y, obj_pos.x - self.x)
-            # Wrap object angle to the range [-pi, pi]
-            obj_angle = (obj_angle + math.pi) % (2 * math.pi) - math.pi
-            # Check if object angle falls within detection range
-            for i, sensor_pos in enumerate(self.sensors):
+        for sensor_pos in self.sensors:
+            for obj_pos in objects:
+                # Check if object is within sensor's range and field of view
+                if obj_pos.distance_to(sensor_pos) <= self.sensor_size:
+                    obj_angle = math.atan2(obj_pos.y - self.position[1], obj_pos.x - self.position[0])
+                    sensor_angle = math.atan2(sensor_pos.y - self.position[1], sensor_pos.x - self.position[0])
+                    angle_diff = abs(obj_angle - sensor_angle)
+                    angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
+                    if abs(angle_diff) < math.pi / 3:  # Field of view angle
+                        self.detected_objects.append(obj_pos)
 
-                # Calculate distance between sensor and object
-                dist = sensor_pos.distance_to(obj_pos)
-                if dist < self.sensor_size:
-                    self.detected_objects.append(obj_pos)
-                    # Update sensor data based on object proximity
-                    self.sensor_data[i] = max(self.sensor_data[i], 1.0 - dist / self.sensor_size)
-        end_time = time.time()  # Stop measuring time
-        execution_time = end_time - start_time
-        print("detect_objects execution time:", execution_time, "seconds")
+        return self.detected_objects
 
-    def search_for_food(self, steps):
-        print(f"Ant's position: ({self.x}, {self.y})")
-        return self.handle_movement()
 
     def get_steering_force(target, current, velocity):
         desired = (target[0] - current[0], target[1] - current[1])
         steering = (desired[0] - velocity[0], desired[1] - velocity[1])
-        return (steering[0] * 0.05, steering[1] * 0.05)
+        return steering[0] * 0.03, steering[1] * 0.03
 
     def periodic_direction_update(self, pheromones, stats, boundaries):
-        start_time = time.time()  # Start measuring time
-        target = None
+        target = self.detect_target()
 
-        # Check if Food in front of Ant
-        if self.current_task == Tasks.FindFood:
-            for obj in self.detected_objects:
-                if isinstance(obj, "FOOD_LOCATION"):
-                    target = obj.position
-                    break
-        # Check if Home in front of ant
-        elif self.current_task == Tasks.FindHome:
-            for obj in self.detected_objects:
-                if isinstance(obj, Nest):
-                    target = obj.position
-                    break
-
-        # If target is none, then instead look for pheromones
         if target is None:
-            if self.current_task == Tasks.FindFood:
-                for obj in self.detected_objects:
-                    if isinstance(obj, Pheromone):
-                        if obj.type == PheromonesTypes.FoundFood:
-                            target = obj.position
-                        break
-            elif self.current_task == Tasks.FindHome:
-                for obj in self.detected_objects:
-                    if isinstance(obj, Pheromone):
-                        if obj.type == PheromonesTypes.FoundHome:
-                            target = obj.position
-                            break
-
-        # If no target, then the ant has to search into a random direction
-        if target is None:
-            print("Target is None")
-            self.acceleration = [self.speed * math.cos(random.uniform(0, 2 * math.pi)), self.speed * math.sin(random.uniform(0, 2 * math.pi))]
-            end_time = time.time()  # Stop measuring time
-            execution_time = end_time - start_time
-            print("periodic_direction_update execution time:", execution_time, "seconds")
+            self.set_random_direction()
             return
 
-        # Calculate steering force towards target
-        steering_force = self.get_steering_force(target, self.position, self.velocity)
+        self.calculate_steering_force(target)
+        self.update_direction()
+        self.check_boundaries(boundaries)
 
-        # Apply steering force with random factor
+    def detect_target(self):
+        for obj in self.detected_objects:
+            if self.current_task == Tasks.FindFood and isinstance(obj, "FOOD_LOCATION"):
+                return obj.position
+            elif self.current_task == Tasks.FindHome and isinstance(obj, Nest):
+                return obj.position
+            elif isinstance(obj, Pheromone):
+                if self.current_task == Tasks.FindFood and obj.type == PheromonesTypes.FoundFood:
+                    return obj.position
+                elif self.current_task == Tasks.FindHome and obj.type == PheromonesTypes.FoundHome:
+                    return obj.position
+        return None
+
+    def set_random_direction(self):
+        self.acceleration = [self.speed * math.cos(random.uniform(0, 2 * math.pi)),
+                             self.speed * math.sin(random.uniform(0, 2 * math.pi))]
+        new_direction = math.atan2(self.acceleration[1], self.acceleration[0])
+
+        angle_diff = new_direction - self.current_direction
+        if abs(angle_diff) > self.max_direction_change:
+            angle_diff = math.copysign(self.max_direction_change, angle_diff)
+        self.rotation = angle_diff
+
+    def calculate_steering_force(self, target):
+        steering_force = self.get_steering_force(target, self.position, self.velocity)
         steering_factor = random.uniform(0.4, 0.7)
         self.acceleration = [self.acceleration[0] + steering_force[0] * steering_factor,
                              self.acceleration[1] + steering_force[1] * steering_factor]
 
-        # Check if new position falls within boundaries
+        new_direction = math.atan2(self.acceleration[1], self.acceleration[0])
+        angle_diff = new_direction - self.current_direction
+        if abs(angle_diff) > self.max_direction_change:
+            angle_diff = math.copysign(self.max_direction_change, angle_diff)
+        self.rotation = angle_diff
+
+    def update_direction(self):
+        self.current_direction += self.rotation
+
+    def check_boundaries(self, boundaries):
         new_pos_x = self.position[0] + self.acceleration[0]
         new_pos_y = self.position[1] + self.acceleration[1]
         if not (boundaries[0][0] <= new_pos_x <= boundaries[1][0]) or not (
                 boundaries[0][1] <= new_pos_y <= boundaries[1][1]):
-            # If out of bounds, reverse the direction
             self.acceleration = [-self.acceleration[0], -self.acceleration[1]]
 
-        end_time = time.time()  # Stop measuring time
-        execution_time = end_time - start_time
-        print("periodic_direction_update execution time:", execution_time, "seconds")
+
 
     def update_position(self, boundaries):
         start_time = time.time()  # Start measuring time
@@ -205,12 +187,14 @@ class Ant:
             # If new position is out of bounds, reverse the direction
             self.velocity = [-self.velocity[0], -self.velocity[1]]
 
+        if self.velocity != (0, 0):
+            self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
         # Reset acceleration
         self.acceleration = [0, 0]
 
         end_time = time.time()  # Stop measuring time
         execution_time = end_time - start_time
-        print("update_position execution time:", execution_time, "seconds")
+        # print("update_position execution time:", execution_time, "seconds")
 
     def new_position(self, boundaries):
 
@@ -236,32 +220,6 @@ class Ant:
         rotation_angle = math.atan2(dy, dx) + math.pi / 2.0
         # transform.rotation = Quat((0, 0, math.sin(rotation_angle / 2), math.cos(rotation_angle / 2)))
 
-    def calculate_field_of_view(self):
-        angle1 = self.current_direction - math.radians(self.fov_angle)
-        angle2 = self.current_direction + math.radians(self.fov_angle)
-        fov_point1 = (self.position[0] + self.fov_length * math.cos(angle1), self.position[1] + self.fov_length * math.sin(angle1))
-        fov_point2 = (self.position[0] + self.fov_length * math.cos(angle2), self.position[1] + self.fov_length * math.sin(angle2))
-        return [self.position, fov_point1, fov_point2]
-
-    def objects_within_field_of_view(self, objects):
-        objects_in_range = []
-
-        for obj in objects:
-            # Calculate angle between ant's position and object
-            obj_angle = math.atan2(obj.y - self.position[1], obj.x - self.position[0])
-            # Calculate difference in angles between the ant's direction and object's angle
-            angle_diff = abs(obj_angle - self.current_direction)
-            # Check if the object is within the field of view angle
-            if angle_diff <= math.radians(self.fov_angle ):  # Assuming the field of view angle is 40 degrees
-                # Calculate distance between ant and object
-                dist = math.sqrt((obj.x - self.position[0]) ** 2 + (obj.y - self.position[1]) ** 2)
-                # Check if the object is within the range of the ant's vision
-                if dist <= self.fov_length:  # Assuming the maximum range of vision is 100 units
-                    objects_in_range.append(obj)
-
-        return objects_in_range
-
-
     def drop_pheromones(self):
         if self.current_task == Tasks.FindHome & self.found_home == True:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood)
@@ -278,7 +236,6 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 ant = Ant()
-ant.search_for_food(100)
 
 
 def main():
@@ -289,13 +246,9 @@ def main():
     pygame.display.set_caption("Ant Walking")
     clock = pygame.time.Clock()
     boundaries = [(0, 0), (width, height)]
-    quad = QuadTreeNode(Rectangle(0, 0, width, height))
 
     ants = [Ant() for _ in range(1)]
     objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(200)]
-
-    for obj in objects:
-        quad.insert(obj)
 
 
 
@@ -316,15 +269,25 @@ def main():
 
             ant.periodic_direction_update(None, None, boundaries)
             ant.update_position(boundaries)
-            ant.update_sensors()
             ant.detect_objects(objects)
-            fov = ant.calculate_field_of_view()
-            pygame.draw.polygon(screen, BLUE, fov, 1)
+
             pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 5)
+
+            for sensor_pos in ant.sensors:
+                # pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)), ant.sensor_size,
+                #                    1)
+                pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)),
+                                   int(ant.sensor_size / 10))
+
+            # Print detected objects
+            for obj in ant.detected_objects:
+                print(f"Object detected at position ({obj.x}, {obj.y})")
 
             for obj in ant.detected_objects:
                 pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
                                  (int(obj.x), int(obj.y)), 2)
+
+
         pygame.display.flip()
         clock.tick(60)
 

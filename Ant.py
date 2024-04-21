@@ -103,8 +103,8 @@ class Ant:
         for i in range(3):
             angle_offset = (i - 1) * self.sensor_spacing
             angle = self.current_direction + angle_offset
-            self.sensors[i].x = self.x + self.sensor_dst * math.cos(angle)
-            self.sensors[i].y = self.y + self.sensor_dst * math.sin(angle)
+            self.sensors[i].x = self.position[0] + self.sensor_dst * math.cos(angle)
+            self.sensors[i].y = self.position[1] + self.sensor_dst * math.sin(angle)
 
     def detect_objects(self, objects):
         """
