@@ -9,7 +9,7 @@ import pygame
 
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
-from helpers import QuadTreeNode, Rectangle
+from helpers import  SpatialHashGrid
 
 
 class Tasks(Enum):
@@ -90,7 +90,8 @@ class Ant:
         self.update_sensor_positions()
 
         for sensor_pos in self.sensors:
-            for obj_pos in objects:
+            nearby_objects = objects.get_objects_nearby(sensor_pos)
+            for obj_pos in nearby_objects:
                 # Check if object is within sensor's range and field of view
                 if obj_pos.distance_to(sensor_pos) <= self.sensor_size:
                     obj_angle = math.atan2(obj_pos.y - self.position[1], obj_pos.x - self.position[0])
@@ -241,9 +242,11 @@ def main():
     pygame.display.set_caption("Ant Walking")
     clock = pygame.time.Clock()
     boundaries = [(0, 0), (width, height)]
-
-    ants = [Ant() for _ in range(50)]
-    objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(200)]
+    spatial_hash_grid = SpatialHashGrid(cell_size=200)
+    ants = [Ant() for _ in range(400)]
+    objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(400)]
+    for obj in objects:
+        spatial_hash_grid.add_object(obj)
 
 
 
@@ -258,26 +261,19 @@ def main():
 
         screen.fill((255, 255, 255))
         for obj in objects:
-            pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 2)
+            pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
 
         for ant in ants:
 
             ant.periodic_direction_update(None, None, boundaries)
             ant.update_position(boundaries)
-            ant.detect_objects(objects)
+            ant.detect_objects(spatial_hash_grid)
 
-            pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 5)
-
-            # for sensor_pos in ant.sensors:
-            #     # pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)), ant.sensor_size,
-            #     #                    1)
-            #     pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)),
-            #                        int(ant.sensor_size / 10))
-
+            pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 1)
 
             for obj in ant.detected_objects:
                 pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-                                 (int(obj.x), int(obj.y)), 2)
+                                 (int(obj.x), int(obj.y)), 1)
 
 
         pygame.display.flip()
