@@ -133,29 +133,19 @@ class Ant:
         return None
 
     def set_random_direction(self):
-        self.acceleration = [self.speed * math.cos(random.uniform(0, 2 * math.pi)),
-                             self.speed * math.sin(random.uniform(0, 2 * math.pi))]
-        new_direction = math.atan2(self.acceleration[1], self.acceleration[0])
-
-        angle_diff = new_direction - self.current_direction
-        if abs(angle_diff) > self.max_direction_change:
-            angle_diff = math.copysign(self.max_direction_change, angle_diff)
-        self.rotation = angle_diff
-
+        random_angle = random.uniform(0, 2 * math.pi)
+        self.acceleration = [self.speed * math.cos(random_angle),
+                             self.speed * math.sin(random_angle)]
+        self.update_rotation()
     def calculate_steering_force(self, target):
         steering_force = self.get_steering_force(target, self.position, self.velocity)
         steering_factor = random.uniform(0.4, 0.7)
         self.acceleration = [self.acceleration[0] + steering_force[0] * steering_factor,
                              self.acceleration[1] + steering_force[1] * steering_factor]
-
-        new_direction = math.atan2(self.acceleration[1], self.acceleration[0])
-        angle_diff = new_direction - self.current_direction
-        if abs(angle_diff) > self.max_direction_change:
-            angle_diff = math.copysign(self.max_direction_change, angle_diff)
-        self.rotation = angle_diff
+        self.update_rotation()
 
     def update_direction(self):
-        self.current_direction += self.rotation
+        self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
     def check_boundaries(self, boundaries):
         new_pos_x = self.position[0] + self.acceleration[0]
@@ -164,7 +154,12 @@ class Ant:
                 boundaries[0][1] <= new_pos_y <= boundaries[1][1]):
             self.acceleration = [-self.acceleration[0], -self.acceleration[1]]
 
-
+    def update_rotation(self):
+        new_direction = math.atan2(self.acceleration[1], self.acceleration[0])
+        angle_diff = new_direction - self.current_direction
+        if abs(angle_diff) > self.max_direction_change:
+            angle_diff = math.copysign(self.max_direction_change, angle_diff)
+        self.rotation = angle_diff
 
     def update_position(self, boundaries):
         start_time = time.time()  # Start measuring time
@@ -247,7 +242,7 @@ def main():
     clock = pygame.time.Clock()
     boundaries = [(0, 0), (width, height)]
 
-    ants = [Ant() for _ in range(1)]
+    ants = [Ant() for _ in range(50)]
     objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(200)]
 
 
@@ -273,15 +268,12 @@ def main():
 
             pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 5)
 
-            for sensor_pos in ant.sensors:
-                # pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)), ant.sensor_size,
-                #                    1)
-                pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)),
-                                   int(ant.sensor_size / 10))
+            # for sensor_pos in ant.sensors:
+            #     # pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)), ant.sensor_size,
+            #     #                    1)
+            #     pygame.draw.circle(screen, BLACK, (int(sensor_pos.x), int(sensor_pos.y)),
+            #                        int(ant.sensor_size / 10))
 
-            # Print detected objects
-            for obj in ant.detected_objects:
-                print(f"Object detected at position ({obj.x}, {obj.y})")
 
             for obj in ant.detected_objects:
                 pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
