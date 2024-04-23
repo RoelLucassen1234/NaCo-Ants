@@ -17,7 +17,6 @@ class Tasks(Enum):
     FindHome = 1
     FindFood = 2
 
-
 class Ant:
     def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1):
         self.x = x
@@ -71,8 +70,11 @@ class Ant:
             nearby_objects = objects.get_objects_nearby(sensor_pos)
             for obj_pos in nearby_objects:
                 # Check if object is within sensor's range and field of view
-                if obj_pos.distance_to(sensor_pos) <= self.sensor_size:
-                    obj_angle = math.atan2(obj_pos.y - self.position[1], obj_pos.x - self.position[0])
+                tem= pygame.Vector2()
+                tem.x = obj_pos.position[0]
+                tem.y = obj_pos.position[1]
+                if tem.distance_to(sensor_pos) <= self.sensor_size:
+                    obj_angle = math.atan2(obj_pos.position[1] - self.position[1], obj_pos.position[0] - self.position[0])
                     sensor_angle = math.atan2(sensor_pos.y - self.position[1], sensor_pos.x - self.position[0])
                     angle_diff = abs(obj_angle - sensor_angle)
                     angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
@@ -224,7 +226,7 @@ def main():
     clock = pygame.time.Clock()
     boundaries = [(0, 0), (width, height)]
     spatial_hash_grid = SpatialHashGrid(cell_size=200)
-    ants = [Ant() for _ in range(100)]
+    ants = [Ant(x=random.randrange(0, width), y=random.randrange(height)) for _ in range(100)]
     objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(0)]
     for obj in objects:
         spatial_hash_grid.add_object(obj)
@@ -244,10 +246,10 @@ def main():
             pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
 
         # reduce potentcy of pheromones
-        for pher in pheromones:
+        for pher in spatial_hash_grid.get_all_objects():
             pher.update_life()
             if pher.life <= 0:
-                pheromones.remove(pher)
+                spatial_hash_grid.remove(pher)
 
         # ants doing ant stuff
         for ant in ants:
@@ -257,7 +259,9 @@ def main():
 
         if k == 0:
             for ant in ants:
-                pheromones.append(ant.drop_pheromones())
+                p = ant.drop_pheromones()
+                # pheromones.append(p)
+                # spatial_hash_grid.add_object(p)
 
 
         #DRAWING ANTS
@@ -266,11 +270,12 @@ def main():
 
             for obj in ant.detected_objects:
                 pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-                                 (int(obj.x), int(obj.y)), 1)
+                                 (int(obj.position[0]), int(obj.position[1])), 1)
 
         #Drawing Pheromones
-        for p in pheromones:
+        for p in spatial_hash_grid.get_all_objects():
             alpha = int((255 * p.life) / p.max_life)
+            print(alpha)
             color = pygame.Color(165,42,42)
             color.a = alpha # White color with alpha channel
 
@@ -285,7 +290,7 @@ def main():
         pygame.display.flip()
         clock.tick(100)
         k += 1
-        if k > 5:
+        if k > 10:
             k = 0
 
 
