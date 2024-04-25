@@ -253,24 +253,24 @@ def main():
 
         # ants doing ant stuff
         for ant in ants:
-            ant.periodic_direction_update(None, None, boundaries)
+            ant.new_position( boundaries)
             ant.update_position(boundaries)
             ant.detect_objects(spatial_hash_grid)
-
-        if k == 0:
-            for ant in ants:
-                p = ant.drop_pheromones()
-                # pheromones.append(p)
-                # spatial_hash_grid.add_object(p)
+        #
+        # if k == 0:
+        #     for ant in ants:
+        #         p = ant.drop_pheromones()
+        #         # pheromones.append(p)
+        #         spatial_hash_grid.add_object(p)
 
 
         #DRAWING ANTS
         for ant in ants:
             pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 1)
 
-            for obj in ant.detected_objects:
-                pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-                                 (int(obj.position[0]), int(obj.position[1])), 1)
+            # for obj in ant.detected_objects:
+            #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
+            #                      (int(obj.position[0]), int(obj.position[1])), 1)
 
         #Drawing Pheromones
         for p in spatial_hash_grid.get_all_objects():
