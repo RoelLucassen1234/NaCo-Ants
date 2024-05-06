@@ -5,6 +5,7 @@ import random
 
 import pygame
 
+from Food import Food
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
 
@@ -18,9 +19,9 @@ class Ant:
     def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1):
         self.x = x
         self.y = y
-        self.position = [0,0]
-        self.position[0] = x
-        self.position[1] = y
+        self.position = [x,y]
+        # self.position[0] = x
+        # self.position[1] = y
         self.speed = speed
         self.steering = steering
         self.wandering_strength = wandering_strength
@@ -33,15 +34,20 @@ class Ant:
         self.antenna_dst = 20
         self.sensors = [pygame.Vector2() for _ in range(3)]
         self.sensor_data = [0.0 for _ in range(3)]
-        self.current_task = Tasks.FindHome
+        self.current_task = Tasks.FindFood
         self.found_home = False
         self.detected_objects = []
         self.max_speed = 1
         self.rotation = 0
+        self.found_food = False
 
         self.acceleration = [0, 0]
         self.velocity = [speed * math.cos(self.current_direction), speed * math.sin(self.current_direction)]
         self.pheromoneStrenth = 20
+
+        #For Helpers Class
+        self.width = 1
+        self.height = 1
 
     def random_steering(self):
         # Generate a random angle between 0 and 2*pi
@@ -67,8 +73,11 @@ class Ant:
             nearby_objects = objects.get_objects_nearby(sensor_pos)
             for obj_pos in nearby_objects:
                 # Check if object is within sensor's range and field of view
-                if obj_pos.distance_to(sensor_pos) <= self.sensor_size:
-                    obj_angle = math.atan2(obj_pos.y - self.position[1], obj_pos.x - self.position[0])
+                # Calculate distance between sensor_pos and obj_pos
+                distance = math.sqrt((obj_pos.position[0] - sensor_pos.x) ** 2 + (obj_pos.position[1] - sensor_pos.y) ** 2)
+                # Check if object is within sensor's range and field of view
+                if distance <= self.sensor_size:
+                    obj_angle = math.atan2(obj_pos.position[1] - self.position[1], obj_pos.position[0] - self.position[0])
                     sensor_angle = math.atan2(sensor_pos.y - self.position[1], sensor_pos.x - self.position[0])
                     angle_diff = abs(obj_angle - sensor_angle)
                     angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
@@ -95,7 +104,8 @@ class Ant:
 
     def detect_target(self):
         for obj in self.detected_objects:
-            if self.current_task == Tasks.FindFood and isinstance(obj, "FOOD_LOCATION"):
+            if self.current_task == Tasks.FindFood and isinstance(obj, Food):
+                print("FOUND FOOD!!!!!!!!")
                 return obj.position
             elif self.current_task == Tasks.FindHome and isinstance(obj, Nest):
                 return obj.position
@@ -193,5 +203,5 @@ class Ant:
     def drop_pheromones(self):
         if self.current_task == Tasks.FindHome and self.found_home == True:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood)
-        elif self.current_task == Tasks.FindFood and self.found_home == True:
+        elif self.current_task == Tasks.FindFood and self.found_home == False:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundHome)

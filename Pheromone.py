@@ -18,6 +18,10 @@ class Pheromone:
         self.max_life = lifetime
         self.type = pheromone_type
 
-    def update_life(self, x=1):
-        self.life -= 0.3
+        #For Helpers Class
+        self.width = 1
+        self.height = 1
+
+    def update_life(self, x=5):
+        self.life -= x
         return self.life

@@ -7,7 +7,8 @@ import math
 import numpy as np
 import pygame
 
-from Environment import Environment
+from Food import Food
+# from Environment import Environment
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
 from helpers import SpatialHashGrid
@@ -17,10 +18,9 @@ class Tasks(Enum):
     FindHome = 1
     FindFood = 2
 
+
 class Ant:
-    def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1):
-        self.x = x
-        self.y = y
+    def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1, direction = 0):
         self.position = np.zeros(2)
         self.position[0] = x
         self.position[1] = y
@@ -28,7 +28,10 @@ class Ant:
         self.steering = steering
         self.wandering_strength = wandering_strength
         self.direction_counter = 0
-        self.current_direction = self.random_steering()
+        if direction == 0:
+            self.current_direction = self.random_steering()
+        else:
+            self.current_direction = direction
         self.max_direction_change = math.pi / 360
         self.sensor_size = 60
         self.sensor_dst = 10
@@ -36,11 +39,16 @@ class Ant:
         self.antenna_dst = 20
         self.sensors = [pygame.Vector2() for _ in range(3)]
         self.sensor_data = [0.0 for _ in range(3)]
-        self.current_task = Tasks.FindHome
+        self.current_task = Tasks.FindFood
         self.found_home = False
         self.detected_objects = []
         self.max_speed = 1
         self.rotation = 0
+
+
+
+        self.width = 1
+        self.height = 1
 
         self.acceleration = [0, 0]
         self.velocity = [speed * math.cos(self.current_direction), speed * math.sin(self.current_direction)]
@@ -60,6 +68,26 @@ class Ant:
             sensor_pos.x = self.position[0] + self.sensor_dst * math.cos(angle)
             sensor_pos.y = self.position[1] + self.sensor_dst * math.sin(angle)
 
+
+    def detect_collision(self, obj):
+        """
+        Detect collision with objects at a given position.
+        Returns True if collision is detected, False otherwise.
+        """
+        ant_x, ant_y = self.position[0], self.position[1]
+        ant_width, ant_height = self.width, self.height  # Assuming Ant has width and height attributes
+
+        # Calculate the distance between the centers of the ant and the object
+        distance = math.sqrt((self.position[0] - obj.position[0]) ** 2 + (self.position[1] - obj.position[1]) ** 2)
+
+        # Calculate the sum of the radii of the ant and the object
+        sum_of_radii = self.width + obj.width
+
+        # Check if the distance between their centers is less than the sum of their radii
+        if distance < sum_of_radii:
+            self.found_home = True
+            return True  # Collision detected
+
     def detect_objects(self, objects):
         self.detected_objects = []
 
@@ -70,11 +98,12 @@ class Ant:
             nearby_objects = objects.get_objects_nearby(sensor_pos)
             for obj_pos in nearby_objects:
                 # Check if object is within sensor's range and field of view
-                tem= pygame.Vector2()
-                tem.x = obj_pos.position[0]
-                tem.y = obj_pos.position[1]
-                if tem.distance_to(sensor_pos) <= self.sensor_size:
-                    obj_angle = math.atan2(obj_pos.position[1] - self.position[1], obj_pos.position[0] - self.position[0])
+                distance = math.sqrt(
+                    (obj_pos.position[0] - sensor_pos.x) ** 2 + (obj_pos.position[1] - sensor_pos.y) ** 2)
+                # Check if object is within sensor's range and field of view
+                if distance <= self.sensor_size:
+                    obj_angle = math.atan2(obj_pos.position[1] - self.position[1],
+                                           obj_pos.position[0] - self.position[0])
                     sensor_angle = math.atan2(sensor_pos.y - self.position[1], sensor_pos.x - self.position[0])
                     angle_diff = abs(obj_angle - sensor_angle)
                     angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
@@ -83,7 +112,7 @@ class Ant:
 
         return self.detected_objects
 
-    def get_steering_force(target, current, velocity):
+    def get_steering_force(self,target, current, velocity):
         desired = (target[0] - current[0], target[1] - current[1])
         steering = (desired[0] - velocity[0], desired[1] - velocity[1])
         return steering[0] * 0.03, steering[1] * 0.03
@@ -101,7 +130,7 @@ class Ant:
 
     def detect_target(self):
         for obj in self.detected_objects:
-            if self.current_task == Tasks.FindFood and isinstance(obj, "FOOD_LOCATION"):
+            if self.current_task == Tasks.FindFood and isinstance(obj, Food):
                 return obj.position
             elif self.current_task == Tasks.FindHome and isinstance(obj, Nest):
                 return obj.position
@@ -135,6 +164,12 @@ class Ant:
         if not (boundaries[0][0] <= new_pos_x <= boundaries[1][0]) or not (
                 boundaries[0][1] <= new_pos_y <= boundaries[1][1]):
             self.acceleration = [-self.acceleration[0], -self.acceleration[1]]
+
+
+        for obj in self.detected_objects:
+            if isinstance(obj,Food):
+                if self.detect_collision(obj):
+                    self.acceleration = [-self.acceleration[0], -self.acceleration[1]]
 
     def update_rotation(self):
         new_direction = math.atan2(self.acceleration[1], self.acceleration[0])
@@ -201,6 +236,8 @@ class Ant:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood)
         elif self.current_task == Tasks.FindHome and self.found_home == False:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood)
+        elif self.current_task == Tasks.FindFood and self.found_home == False:
+            return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundHome)
         elif self.current_task == Tasks.FindFood and self.found_home == True:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundHome)
 
@@ -211,6 +248,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 ant = Ant()
+
 
 
 def main():
@@ -226,10 +264,10 @@ def main():
     clock = pygame.time.Clock()
     boundaries = [(0, 0), (width, height)]
     spatial_hash_grid = SpatialHashGrid(cell_size=200)
-    ants = [Ant(x=random.randrange(0, width), y=random.randrange(height)) for _ in range(100)]
-    objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(0)]
-    for obj in objects:
-        spatial_hash_grid.add_object(obj)
+    ants = [Ant() for _ in range(100)]
+    # objects = [pygame.Vector2(random.randrange(0, width), random.randrange(height)) for _ in range(0)]
+    # for obj in objects:
+    #     spatial_hash_grid.add_object(obj)
 
     while True:
         for event in pygame.event.get():
@@ -238,46 +276,42 @@ def main():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mx, my = pygame.mouse.get_pos()
-                objects.append(pygame.Vector2(mx, my))
-                spatial_hash_grid.add_object(pygame.Vector2(mx, my))
+                # objects.append(pygame.Vector2(mx, my))
+                # spatial_hash_grid.add_object(pygame.Vector2(mx, my))
 
         screen.fill((0, 0, 0))
-        for obj in objects:
-            pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
+        # for obj in objects:
+        #     pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
 
         # reduce potentcy of pheromones
-        for pher in spatial_hash_grid.get_all_objects():
+        for pher in pheromones:
             pher.update_life()
             if pher.life <= 0:
-                spatial_hash_grid.remove(pher)
+                pheromones.remove(pher)
 
         # ants doing ant stuff
         for ant in ants:
-            ant.new_position( boundaries)
+            ant.periodic_direction_update(None, None, boundaries)
             ant.update_position(boundaries)
             ant.detect_objects(spatial_hash_grid)
-        #
-        # if k == 0:
-        #     for ant in ants:
-        #         p = ant.drop_pheromones()
-        #         # pheromones.append(p)
-        #         spatial_hash_grid.add_object(p)
 
+        if k == 0:
+            for ant in ants:
+                pheromones.append(ant.drop_pheromones())
 
-        #DRAWING ANTS
+        # DRAWING ANTS
         for ant in ants:
             pygame.draw.circle(screen, GREEN, (int(ant.position[0]), int(ant.position[1])), 1)
 
-            # for obj in ant.detected_objects:
-            #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-            #                      (int(obj.position[0]), int(obj.position[1])), 1)
+            for obj in ant.detected_objects:
+                pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
+                                 (int(obj.x), int(obj.y)), 1)
 
-        #Drawing Pheromones
-        for p in spatial_hash_grid.get_all_objects():
+        # Drawing Pheromones
+        for p in pheromones:
             alpha = int((255 * p.life) / p.max_life)
-            print(alpha)
-            color = pygame.Color(165,42,42)
-            color.a = alpha # White color with alpha channel
+            color = pygame.Color(165, 42, 42)
+            color.a = alpha  # White color with alpha channel
 
             # Draw the pheromone as a rectangle with adjusted color opacity
             rect = pygame.Rect(int(p.position[0]), int(p.position[1]), p.width, p.height)
@@ -286,14 +320,12 @@ def main():
             surface.fill(color)
             screen.blit(surface, rect)
 
-
         pygame.display.flip()
         clock.tick(100)
         k += 1
-        if k > 10:
+        if k > 5:
             k = 0
 
 
-
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     test()

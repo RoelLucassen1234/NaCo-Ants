@@ -2,10 +2,12 @@ import sys
 
 import pygame
 
-from Ant import Ant
+from Tests import Ant
+from Food import Food
 from Nest import Nest
 import random
 
+from Pheromone import Pheromone
 from helpers import SpatialHashGrid
 
 
@@ -18,6 +20,7 @@ class Environment:
         self.sim_mode = sim_mode
         self.sim_loop = 0
 
+        self.spatial_hash_grid = SpatialHashGrid(cell_size=200)
         self.pheromones = []
         # Initialization of the nest
         self.nest = Nest()
@@ -27,6 +30,9 @@ class Environment:
 
         # # Birth of ants - List contains all ants object
         # self.ant_data = [Ant(x,y) for i in range(self.ant_number)]
+
+        self.food = Food([600,600])
+        self.spatial_hash_grid.add_object(self.food)
 
         self.width = 900
         self.height = 900
@@ -48,11 +54,6 @@ class Environment:
 
     def ant_logic(self):
 
-        #reduce potentcy of pheromones
-        for pher in self.pheromones:
-            pher.update_life()
-            if pher.life <= 0:
-                self.pheromones.remove(pher)
 
         #ants doing ant stuff
         for ant in self.ants:
@@ -60,19 +61,50 @@ class Environment:
             ant.update_position(self.boundaries)
             ant.detect_objects(self.spatial_hash_grid)
 
-        for ant in self.ants:
-            self.pheromones.append(ant.drop_pheromones())
+            if random.randrange(1,10) == 5:
+                self.spatial_hash_grid.add_object(ant.drop_pheromones())
+        #
+        # for ant in self.ants:
+        #     self.spatial_hash_grid.add_object(ant.drop_pheromones())
+
+
+    def env_pheromone_logic(self):
+        objects = self.spatial_hash_grid.get_objects_of_type(Pheromone)
+
+        for obj in objects:
+            obj.update_life()
+            if obj.life <= 0:
+                self.spatial_hash_grid.remove_object(obj)
+
 
     def draw_ants(self,screen):
         for ant in self.ants:
             pygame.draw.circle(screen, (0, 255, 0), (int(ant.position[0]), int(ant.position[1])), 1)
 
-            for obj in ant.detected_objects:
-                pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-                                 (int(obj.x), int(obj.y)), 1)
+            # for obj in ant.detected_objects:
+            #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
+            #                      (int(obj.position[0]), int(obj.position[1])), 1)
 
-    def draw_pheromones(self):
-        return
+
+    def draw_food(self, screen):
+        objects = self.spatial_hash_grid.get_objects_of_type(Food)
+
+        for obj in objects:
+            pygame.draw.circle(screen, (144, 144, 0), (int(obj.position[0]), int(obj.position[1])), 4)
+
+
+    def draw_pheromones(self, screen):
+        for p in self.spatial_hash_grid.get_objects_of_type(Pheromone):
+            alpha = int((255 * p.life) / p.max_life)
+            color = pygame.Color(165, 42, 42)
+            color.a = alpha  # White color with alpha channel
+
+            # Draw the pheromone as a rectangle with adjusted color opacity
+            rect = pygame.Rect(int(p.position[0]), int(p.position[1]), p.width, p.height)
+            surface = pygame.Surface((rect.width, rect.height))
+            surface.set_alpha(alpha)
+            surface.fill(color)
+            screen.blit(surface, rect)
 
     def run_simulation(self):
         BLACK = (0, 0, 0)
@@ -86,7 +118,7 @@ class Environment:
         pygame.display.set_caption("Ant Walking")
         clock = pygame.time.Clock()
         boundaries = [(0, 0), (self.width, self.height)]
-        spatial_hash_grid = SpatialHashGrid(cell_size=200)
+        # spatial_hash_grid = SpatialHashGrid(cell_size=200)
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -94,14 +126,20 @@ class Environment:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = pygame.mouse.get_pos()
-                    spatial_hash_grid.add_object(pygame.Vector2(mx, my))
+                    self.spatial_hash_grid.add_object(Food([mx, my]))
 
             screen.fill((0, 0, 0))
-            for obj in spatial_hash_grid.get_all_objects():
-                pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
+            # for obj in spatial_hash_grid.get_all_objects():
+            #     pygame.draw.circle(screen, (0, 0, 255), (int(obj.x), int(obj.y)), 1)
 
             self.ant_logic()
+            self.env_pheromone_logic()
+
+
             self.draw_ants(screen)
+            self.draw_pheromones(screen)
+            self.draw_food(screen)
+
 
 
             pygame.display.flip()
@@ -139,3 +177,7 @@ class Environment:
         # self.status_vars[3].set(f'Food reserve: {self.nest.food_storage:.2f}')
         # self.status_vars[4].set(f'Unpicked food: {self.food.life}')
         # self.status_vars[5].set(f'Pheromones: {len(pheromones)}')
+
+env = Environment(100, "Test")
+
+env.run_simulation()
