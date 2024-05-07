@@ -37,7 +37,7 @@ class SpatialHashGrid:
     def get_objects_in_cell(self, cell_key):
         return self.grid.get(cell_key, [])
 
-    def get_objects_nearby(self, obj):
+    def get_objects_nearby(self, obj, width=1):
         try:
 
             min_x = int(obj.position[0] / self.cell_size)
@@ -48,8 +48,8 @@ class SpatialHashGrid:
             obj_data = {
                 'x': obj.x,
                 'y': obj.y,
-                'width': 1,  # Assuming width and height of 1 for pygame.Vector2 objects
-                'height': 1
+                'width': width,  # Assuming width and height of 1 for pygame.Vector2 objects
+                'height': width
 
             }
             min_x = int(obj_data['x'] / self.cell_size)

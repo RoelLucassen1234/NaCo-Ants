@@ -40,6 +40,7 @@ class Ant:
         self.max_speed = 1
         self.rotation = 0
         self.found_food = False
+        self.fitness = 0
 
         self.acceleration = [0, 0]
         self.velocity = [speed * math.cos(self.current_direction), speed * math.sin(self.current_direction)]
@@ -69,20 +70,30 @@ class Ant:
         # Update sensor positions based on ant's direction
         self.update_sensor_positions()
 
-        for sensor_pos in self.sensors:
-            nearby_objects = objects.get_objects_nearby(sensor_pos)
-            for obj_pos in nearby_objects:
-                # Check if object is within sensor's range and field of view
-                # Calculate distance between sensor_pos and obj_pos
-                distance = math.sqrt((obj_pos.position[0] - sensor_pos.x) ** 2 + (obj_pos.position[1] - sensor_pos.y) ** 2)
-                # Check if object is within sensor's range and field of view
-                if distance <= self.sensor_size:
-                    obj_angle = math.atan2(obj_pos.position[1] - self.position[1], obj_pos.position[0] - self.position[0])
-                    sensor_angle = math.atan2(sensor_pos.y - self.position[1], sensor_pos.x - self.position[0])
-                    angle_diff = abs(obj_angle - sensor_angle)
-                    angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
-                    if abs(angle_diff) < math.pi / 3:  # Field of view angle
-                        self.detected_objects.append(obj_pos)
+        nearby_objects = objects.get_all_objects()
+
+        for obj in nearby_objects:
+            # Calculate the distance between the ant and the object
+            distance = math.sqrt((self.position[0] - obj.position[0]) ** 2 + (self.position[1] - obj.position[1]) ** 2)
+
+            # Check if the object is within the detection radius
+            if distance <= 100:
+                self.detected_objects.append(obj)
+
+        # for sensor_pos in self.sensors:
+        #     nearby_objects = objects.get_objects_nearby(sensor_pos)
+        #     for obj_pos in nearby_objects:
+        #         # Check if object is within sensor's range and field of view
+        #         # Calculate distance between sensor_pos and obj_pos
+        #         distance = math.sqrt((obj_pos.position[0] - sensor_pos.x) ** 2 + (obj_pos.position[1] - sensor_pos.y) ** 2)
+        #         # Check if object is within sensor's range and field of view
+        #         if distance <= self.sensor_size:
+        #             obj_angle = math.atan2(obj_pos.position[1] - self.position[1], obj_pos.position[0] - self.position[0])
+        #             sensor_angle = math.atan2(sensor_pos.y - self.position[1], sensor_pos.x - self.position[0])
+        #             angle_diff = abs(obj_angle - sensor_angle)
+        #             angle_diff = (angle_diff + math.pi) % (2 * math.pi) - math.pi
+        #             if abs(angle_diff) < math.pi / 3:  # Field of view angle
+        #                 self.detected_objects.append(obj_pos)
 
         return self.detected_objects
 
@@ -105,7 +116,6 @@ class Ant:
     def detect_target(self):
         for obj in self.detected_objects:
             if self.current_task == Tasks.FindFood and isinstance(obj, Food):
-                print("FOUND FOOD!!!!!!!!")
                 return obj.position
             elif self.current_task == Tasks.FindHome and isinstance(obj, Nest):
                 return obj.position
