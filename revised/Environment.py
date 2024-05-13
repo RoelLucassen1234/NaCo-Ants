@@ -2,13 +2,14 @@ import sys
 
 import pygame
 
-from Tests import Ant, Tasks
+from Tests import Tasks
 from Food import Food
 from Nest import Nest
 import random
 
 from Pheromone import Pheromone
 from helpers import SpatialHashGrid
+from revised.boid import Boid
 
 
 class Environment:
@@ -38,7 +39,7 @@ class Environment:
             self.boundaries = [(0, 0), (self.width, self.height)]
 
             self.spatial_hash_grid = SpatialHashGrid(cell_size=200)
-            self.ants = [Ant(x,y) for _ in range(self.ant_number)]
+            self.ants = [Boid() for _ in range(self.ant_number)]
         elif sim_mode == "EXP":
             self.food = Food([600, 600])
             self.spatial_hash_grid.add_object(self.food)
@@ -61,37 +62,25 @@ class Environment:
     def return_ants(self):
         return self.ants
 
-    def calculate_loss(self,ant):
-        ants_at_food = 0
-        ants_made_food = 0
-
-        if ant.current_task == Tasks.GatherAnts:
-            ants_made_food = 0.5
-
-        for a in self.ants:
-
-            if a.current_task == Tasks.GatherAnts:
-                ants_at_food += 1
-
-        loss = ants_made_food + (ants_at_food / len(self.ants))
-        return loss
-
     def ant_logic(self):
 
 
         #ants doing ant stuff
         for ant in self.ants:
-            ant.periodic_direction_update(None, None, self.boundaries)
+            ant.scan_objects_in_radius(self.spatial_hash_grid)
+            ant.move_direction_update()
             ant.update_position(self.boundaries)
-            ant.detect_objects(self.spatial_hash_grid)
+            ant.update_time_spend()
+            # ant.detect_objects(self.spatial_hash_grid)
+            #
 
-            if random.randrange(1,10) == 5:
-                p = ant.drop_pheromones()
-                if p is not None:
-                    self.spatial_hash_grid.add_object(ant.drop_pheromones())
+            p = ant.drop_pheromones()
+            if p is not None:
+                self.spatial_hash_grid.add_object(p)
         #
         # for ant in self.ants:
         #     self.spatial_hash_grid.add_object(ant.drop_pheromones())
+
 
 
     def env_pheromone_logic(self):
@@ -144,6 +133,9 @@ class Environment:
         pygame.display.set_caption("Ant Walking")
         clock = pygame.time.Clock()
         boundaries = [(0, 0), (self.width, self.height)]
+
+
+
         # spatial_hash_grid = SpatialHashGrid(cell_size=200)
         while True:
             for event in pygame.event.get():
@@ -157,12 +149,12 @@ class Environment:
                     key = pygame.key.name(event.key)
 
 
-                    if key == "a":
-                        mx, my = pygame.mouse.get_pos()
-                        self.ants.append(Ant(mx, my, current_task=Tasks.GatherAnts,direction=180))
-                    if key == "s":
-                        mx, my = pygame.mouse.get_pos()
-                        self.ants.append(Ant(mx, my, current_task=Tasks.FindFood, direction=90))
+                    # if key == "a":
+                    #     mx, my = pygame.mouse.get_pos()
+                    #     self.ants.append(Ant(mx, my, current_task=Tasks.GatherAnts,direction=180))
+                    # if key == "s":
+                    #     mx, my = pygame.mouse.get_pos()
+                    #     self.ants.append(Ant(mx, my, current_task=Tasks.FindFood, direction=90))
 
 
 
@@ -177,11 +169,10 @@ class Environment:
             self.draw_ants(screen)
             self.draw_pheromones(screen)
             self.draw_food(screen)
-
-
-
             pygame.display.flip()
-            clock.tick(60)
+            clock.tick(100)
+
+
 
     def run_frames(self, amount_of_runs=2000):
         i = 0
