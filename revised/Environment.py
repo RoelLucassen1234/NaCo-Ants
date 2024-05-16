@@ -94,7 +94,10 @@ class Environment:
 
     def draw_ants(self,screen):
         for ant in self.ants:
-            pygame.draw.circle(screen, (0, 255, 0), (int(ant.position[0]), int(ant.position[1])), 1)
+            if ant.current_task == Tasks.FindFood:
+                pygame.draw.circle(screen, (0, 255, 0), (int(ant.position[0]), int(ant.position[1])), 1)
+            else:
+                pygame.draw.circle(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])), 1)
 
             # for obj in ant.detected_objects:
             #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
@@ -186,7 +189,6 @@ class Environment:
 
 
     def update_pheromones(self):
-
         for pheromone in self.pheromones:
             # Update the life expectancy of the pheromone by 1
             updated_life = pheromone.update_life(1)
@@ -202,4 +204,4 @@ class Environment:
 
 env = Environment(50, "free")
 
-env.run_frames()
+env.run_simulation()

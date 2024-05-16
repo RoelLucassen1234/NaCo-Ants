@@ -21,17 +21,18 @@ class Boid():
         self.detected_objects = []
 
         # Detection
-        self.detection_range = 60
+        self.detection_range = 80
         self.current_task = Tasks.FindFood
 
         # Exploration
-        self.exploration_prob = 0.01
+        self.exploration_prob = 0.3
 
         #Time
         self.time_spend = 0
 
         #Pheromones
-        self.p_drop = True
+        self.p_drop = 8 #Dropping every 10 frames
+        self.p_drop_current = 0
 
     def scan_objects_in_radius(self, objects):
         self.detected_objects = []
@@ -127,6 +128,10 @@ class Boid():
 
         self.acceleration = [self.acceleration[0] + steering_force[0],
                              self.acceleration[1] + steering_force[1]]
+        #
+        # self.acceleration[0] = max(0.1, self.acceleration[0])
+        # self.acceleration[1] = max(0.1, self.acceleration[1])
+
         print(self.acceleration)
         self.check_collisions()
 
@@ -145,6 +150,13 @@ class Boid():
         speed = math.sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
         if speed > self.speed:
             self.velocity = [self.velocity[0] * self.speed / speed, self.velocity[1] * self.speed / speed]
+        elif speed < self.speed:
+            self.velocity = [self.velocity[0] * self.speed, self.velocity[1] * self.speed]
+
+        # Normalize velocity to maintain constant speed
+        speed = math.sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
+        if speed != 0:
+            self.velocity = [self.velocity[0] / speed, self.velocity[1] / speed]
 
         # Update position based on velocity
         new_pos_x = self.position[0] + self.velocity[0]
@@ -170,8 +182,9 @@ class Boid():
     def drop_pheromones(self):
 
         if self.current_task == Tasks.GatherAnts:
-            if self.p_drop == True:
-                self.p_drop = False
-                return Pheromone(self.position, 400, pheromone_type=PheromonesTypes.FoundFood,pheromone_strength=1)
+            if self.p_drop == self.p_drop_current:
+                self.p_drop_current = 0
+                return Pheromone(self.position, 1900, pheromone_type=PheromonesTypes.FoundFood,pheromone_strength=1)
             else:
-                self.p_drop = True
+                self.p_drop_current += 1
+
