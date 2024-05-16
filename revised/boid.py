@@ -13,6 +13,7 @@ class Boid():
         self.current_direction = None
         self.position = [100, 100]
         self.acceleration = [1, 1]
+        self.previous_acc = [0, 0]
         self.velocity = [1, 1]
 
         self.speed = 1
@@ -21,29 +22,28 @@ class Boid():
         self.detected_objects = []
 
         # Detection
-        self.detection_range = 80
+        self.detection_range = 30
         self.current_task = Tasks.FindFood
 
         # Exploration
         self.exploration_prob = 0.3
 
-        #Time
+        # Time
         self.time_spend = 0
 
-        #Pheromones
-        self.p_drop = 8 #Dropping every 10 frames
+        # Pheromones
+        self.p_drop = 16  # Dropping every 10 frames
         self.p_drop_current = 0
 
     def scan_objects_in_radius(self, objects):
         self.detected_objects = []
         nearby_objects_around_ant = objects.get_objects_nearby(self)
 
-
         for obj in nearby_objects_around_ant:
             distance = math.sqrt((obj.position[0] - self.position[0]) ** 2 + (obj.position[1] - self.position[1]) ** 2)
             # Get Radius around ant and object and check if within eachother
 
-            if distance <= self.detection_range:
+            if distance < self.detection_range:
                 self.detected_objects.append(obj)
 
         return self.detected_objects
@@ -70,6 +70,18 @@ class Boid():
                         oldest_pheromone_age = obj.life
                         oldest_pheromone_position = obj.position
         return oldest_pheromone_position
+
+    def search_pheromones(self):
+        oldest = float('-inf')
+        pos = None
+        for obj in self.detected_objects:
+            if type(obj) is Pheromone:
+                if obj.life < oldest:
+                    oldest = obj.life
+                    pos = obj.position
+        return pos
+
+
 
     def get_steering_force(self, target):
         desired = (target[0] - self.position[0], target[1] - self.position[1])
@@ -102,10 +114,19 @@ class Boid():
                     self.current_task = Tasks.GatherAnts
 
     def move_direction_update(self):
+
+
         target = self.search_target()
 
+
         if target is None:
-            if random.random() < self.exploration_prob:
+            if self.current_task == Tasks.GatherAnts:
+                explore = self.exploration_prob
+            elif self.current_task == Tasks.FindFood:
+                explore = self.exploration_prob
+            else:
+                explore = 0.3
+            if random.random() < explore:
                 # Explore: Perturb the current direction by roughly 20%
                 if self.velocity:  # Check if velocity exists
                     # Calculate the perturbation
@@ -120,30 +141,28 @@ class Boid():
                     # self.velocity[1] += self.acceleration[1]
                     # self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
-
             return
+
 
         # Make the Boid start steering towards the target. Also makes it that the boid cannot do a sudden 180
         steering_force = self.get_steering_force(target)
 
         self.acceleration = [self.acceleration[0] + steering_force[0],
                              self.acceleration[1] + steering_force[1]]
-        #
-        # self.acceleration[0] = max(0.1, self.acceleration[0])
-        # self.acceleration[1] = max(0.1, self.acceleration[1])
 
-        print(self.acceleration)
+
         self.check_collisions()
 
         self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
-
 
     def update_time_spend(self):
         if self.current_task != Tasks.GatherAnts:
             self.time_spend += 1
 
-
     def update_position(self, boundaries):
+
+        if self.acceleration == [0, 0]:
+            self.acceleration = self.previous_acc
 
         self.velocity = [self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1]]
 
@@ -153,7 +172,7 @@ class Boid():
         elif speed < self.speed:
             self.velocity = [self.velocity[0] * self.speed, self.velocity[1] * self.speed]
 
-        # Normalize velocity to maintain constant speed
+        #Normalize velocity to maintain constant speed
         speed = math.sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
         if speed != 0:
             self.velocity = [self.velocity[0] / speed, self.velocity[1] / speed]
@@ -175,16 +194,16 @@ class Boid():
         if self.velocity != [0, 0]:
             self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
-        # Reset acceleration
+        # # Reset acceleration
+        # if self.acceleration != [0,0]:
+        #     self.previous_acc = self.acceleration.copy()
         self.acceleration = [0, 0]
-
 
     def drop_pheromones(self):
 
         if self.current_task == Tasks.GatherAnts:
             if self.p_drop == self.p_drop_current:
                 self.p_drop_current = 0
-                return Pheromone(self.position, 1900, pheromone_type=PheromonesTypes.FoundFood,pheromone_strength=1)
+                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundFood, pheromone_strength=1)
             else:
                 self.p_drop_current += 1
-

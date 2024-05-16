@@ -1,4 +1,5 @@
 import enum
+import random
 
 
 class PheromonesTypes(enum.Enum):
@@ -11,6 +12,7 @@ class Pheromone:
         """The pheromones are placed in the current position of the ant
 
         """
+        self.idx = random.randrange(0,10000)
         self.width = 1
         self.height = 1
         self.position = pos

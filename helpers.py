@@ -37,13 +37,13 @@ class SpatialHashGrid:
     def get_objects_in_cell(self, cell_key):
         return self.grid.get(cell_key, [])
 
-    def get_objects_nearby(self, obj, width=1):
+    def get_objects_nearby(self, obj, width=8):
         try:
 
             min_x = int(obj.position[0] / self.cell_size)
             min_y = int(obj.position[1] / self.cell_size)
-            max_x = int((obj.position[0] + 1) / self.cell_size)
-            max_y = int((obj.position[1] + 1) / self.cell_size)
+            max_x = int((obj.position[0] + width) / self.cell_size)
+            max_y = int((obj.position[1] + width) / self.cell_size)
         except:
             obj_data = {
                 'x': obj.x,
