@@ -86,10 +86,15 @@ class Environment:
     def env_pheromone_logic(self):
         objects = self.spatial_hash_grid.get_objects_of_type(Pheromone)
 
+
+
         for obj in objects:
             obj.update_life()
-            if obj.life <= 0:
+            if obj.life <= 1:
                 self.spatial_hash_grid.remove_object(obj)
+
+        # for obj in objects:
+        #     self.spatial_hash_grid.add_object(obj)
 
 
     def draw_ants(self,screen):
@@ -102,7 +107,8 @@ class Environment:
             # for obj in ant.detected_objects:
             #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
             #                      (int(obj.position[0]), int(obj.position[1])), 1)
-
+            pygame.draw.circle(screen, (0, 0, 255), (int(ant.position[0]), int(ant.position[1])), int(ant.detection_range),
+                           1)
 
     def draw_food(self, screen):
         objects = self.spatial_hash_grid.get_objects_of_type(Food)
