@@ -9,7 +9,7 @@ from Task import Tasks
 
 class Ant():
 
-    def __init__(self, exploration_prob=0.5, max_steering = 15, position=[100,100]):
+    def __init__(self, max_steering=15, exploration_prob=0.5, ph_decay=15, detection_range=30, position=[100, 100]):
         self.current_direction = None
 
         self.position = position
@@ -18,11 +18,11 @@ class Ant():
         self.velocity = [1, 1]
         self.steering = 0
 
-        #Genetic Properties
+        # Genetic Properties
         self.max_steering = max_steering
         self.exploration_prob = exploration_prob
-        self.ph_decay = 1
-        self.detection_range = 30
+        self.ph_decay = ph_decay
+        self.detection_range = detection_range
 
         self.speed = 1
         self.fitness = 0
@@ -33,17 +33,15 @@ class Ant():
 
         self.current_task = Tasks.FindHome
 
-
         # Time
         self.time_spend = 0
 
         # Pheromones
 
         self.ph_tick = 16  # Dropping every 10 frames
-        #Statistics
+        # Statistics
         self.p_drop_current = 0
         self.steps_to_home = 0
-
 
     def scan_objects_in_radius(self, objects):
         self.detected_objects = []
@@ -159,7 +157,6 @@ class Ant():
 
     def update_position(self, boundaries):
 
-
         self.velocity = [self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1]]
 
         speed = math.sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
@@ -200,7 +197,8 @@ class Ant():
         if self.current_task == Tasks.GatherAnts:
             if self.ph_tick == self.p_drop_current:
                 self.p_drop_current = 0
-                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundHome, pheromone_strength=self.ph_decay)
+                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundHome,
+                                 pheromone_strength=self.ph_decay)
             else:
                 self.p_drop_current += 1
 

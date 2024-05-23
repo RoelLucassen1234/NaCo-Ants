@@ -6,50 +6,65 @@ import matplotlib.pyplot as plt  # Import matplotlib for plotting
 
 from Ant import Ant
 
-ANT_POPULATION = 50
-GENERATION = 100
-MUTATION_RATE = 0.1
-EPSILON = 0.1
-sim_mode = "EXP"
-random.seed(10)
-
 
 class EvolutionaryAlgorithm:
-    def __init__(self, max_steering=5, exploration_prob=0.3, ph_decay=0.5, detection_range=30, simulation_length=2000,
+    def __init__(self, simulation_length=2000, max_steering=5, exploration_prob=0.3, ph_decay=0.5, detection_range=30,
                  steering_genetic=True, exploration_genetic=True, ph_genetic=True, detection_genetic=True):
+
+        self.simulation_length = simulation_length
+
         self.max_steering = max_steering
         self.exploration_prob = exploration_prob
         self.ph_decay = ph_decay
         self.detection_range = detection_range
-        self.simulation_length = simulation_length
+
         self.steering_genetic = steering_genetic
         self.exploration_genetic = exploration_genetic
         self.ph_genetic = ph_genetic
         self.detection_genetic = detection_genetic
 
-    def initial_direction(self) -> float:
-        # Generate a random angle between 0 and 2*pi
-        angle = random.uniform(0, 2 * math.pi)
-        # Adjust the angle to make the movement less jittery
-        angle += random.randrange(0, 100)
-        return angle
+        self.ANT_POPULATION = 50
+        self.GENERATION = 100
+        self.MUTATION_RATE = 0.1
+        self.EPSILON = 0.1
+        self.sim_mode = "EXP"
+        random.seed(10)
+
+    # def initial_direction(self) -> float:
+    #     # Generate a random angle between 0 and 2*pi
+    #     angle = random.uniform(0, 2 * math.pi)
+    #     # Adjust the angle to make the movement less jittery
+    #     angle += random.randrange(0, 100)
+    #     return angle
+
+    def initial_max_steering(self) -> float:
+        prob = random.random()
+        return prob
 
     def initial_exploration_prob(self) -> float:
         prob = random.random()
         return prob
 
+    def initial_pheromone_decay(self) -> float:
+        prob = random.random()
+        return prob
+
+    def initial_detection_range(self) -> float:
+        prob = random.random()
+        return prob
+
     def generate_initial_population(self, number_of_ants):
         population = []
-        init_exploration_prob = []
 
         for i in range(number_of_ants):
+            steering = self.initial_max_steering()
             explor_prob = self.initial_exploration_prob()
-            init_exploration_prob.append(explor_prob)
-            population.append(Ant(exploration_prob=explor_prob))
+            decay = self.initial_pheromone_decay()
+            detect_range = self.initial_detection_range()
 
-        return population, init_exploration_prob
+            population.append(Ant(max_steering=steering, exploration_prob=explor_prob, ph_decay=decay, detection_range=detect_range))
 
-    import random
+        return population
 
     def select_parents(self, population):
         # Select two parents from the population using tournament selection
@@ -60,48 +75,41 @@ class EvolutionaryAlgorithm:
         # parent2 = max(random.sample(population, k=5), key=lambda ant: ant.fitness)
         return parent1, parent2
 
-    def crossover(self, parent1, parent2, exploration, steering, pheromone, speed):
-        # # Perform crossover for wandering_strength
-        # child_wandering_strength = parent1.wandering_strength * 0.5 + parent2.wandering_strength * 0.5
-        #
-        # # Perform crossover for steering
-
+    def crossover(self, parent1, parent2):
         child = Ant()
 
-        if exploration:
-            child_exploration = parent1.exploration_prob * 0.5 + parent2.exploration_prob * 0.5
-            # child = Boid(exploration_prob=child_exploration)
-            child.exploration_prob = child_exploration
-
-        if steering:
+        if self.steering_genetic:
             child_steering = parent1.steering * 0.5 + parent2.steering * 0.5
-            # child = Boid(st=child_steering)
             child.steering = child_steering
 
-        if pheromone:
-            child_pheromone = parent1.pheromone * 0.5 + parent2.pheromone * 0.5
-            # child = Boid(pheromone=child_pheromone)
+        if self.exploration_prob:
+            child_exploration = parent1.exploration_prob * 0.5 + parent2.exploration_prob * 0.5
+            child.exploration_prob = child_exploration
+
+        if self.ph_genetic:
+            child_pheromone = parent1.ph_tick * 0.5 + parent2.ph_tick * 0.5
             child.ph_tick = child_pheromone
 
-        if speed:
-            child_speed = parent1.speed * 0.5 + parent2.speed * 0.5
-            # child = Boid(speed=child_speed)
-            child.speed = child_speed
+        if self.detection_genetic:
+            child_detection = parent1.detection_range * 0.5 + parent2.detection_range * 0.5
+            child.detection_range = child_detection
 
         return child
 
-    def mutate(self, ant, exploration, steering, pheromone, speed):
-        # Perform mutation on an ant's path
-        # mutated_ant = Boid(exploration_prob=ant.exploration_prob * random.uniform(0.9, 1.1))
+    def mutate(self, ant):
         mutated_ant = Ant()
-        if exploration:
-            mutated_ant.exploration_prob = ant.exploration_prob * random.uniform(0.9, 1.1)
-        if steering:
-            mutated_ant.steering = ant.steering * random.uniform(0.9, 1.1)
-        if pheromone:
-            mutated_ant.ph_tick = ant.ph_tick * random.uniform(0.9, 1.1)
-        if speed:
-            mutated_ant.speed = ant.speed * random.uniform(0.9, 1.1)
+        if self.steering_genetic:
+            if random.random() < self.MUTATION_RATE:
+                mutated_ant.steering = ant.steering * random.uniform(0.9, 1.1)
+        if self.exploration_genetic:
+            if random.random() < self.MUTATION_RATE:
+                mutated_ant.exploration_prob = ant.exploration_prob * random.uniform(0.9, 1.1)
+        if self.ph_genetic:
+            if random.random() < self.MUTATION_RATE:
+                mutated_ant.ph_tick = ant.ph_tick * random.uniform(0.9, 1.1)
+        if self.detection_genetic:
+            if random.random() < self.MUTATION_RATE:
+                mutated_ant.detection_range = ant.detection_range * random.uniform(0.9, 1.1)
         return mutated_ant
 
     def get_fitness_sum(self, population, env):
@@ -124,24 +132,22 @@ class EvolutionaryAlgorithm:
 
         return ant
 
-    def run_genetic_algorithm(self, exploration, steering, pheromone, speed):
+    def run_genetic_algorithm(self):
         # Run the genetic algorithm for a specified number of generations
         # TODO 1 Generate initial parameters
-        population, _ = self.generate_initial_population(ANT_POPULATION)
+        population = self.generate_initial_population(self.ANT_POPULATION)
 
-        env = Environment(ANT_POPULATION, sim_mode=sim_mode, ants=population)
+        env = Environment(self.ANT_POPULATION, sim_mode=self.sim_mode, ants=population)
         fitness_history = []
         self.get_fitness_sum(population, env)
         # best_ant = highest_fitness(population)
         # fitness_history.append(best_ant.fitness)
 
         # TODO 2 run the model x times
-        for i in range(GENERATION):
+        for i in range(self.GENERATION):
             # TODO 3 calculate loss function
-            population = self.run_generation(population, exploration=exploration, steering=steering,
-                                             pheromone=pheromone, speed=speed)
-            f = self.get_fitness_sum(population, env, exploration=exploration, steering=steering, pheromone=pheromone,
-                                     speed=speed)
+            population = self.run_generation(population)
+            f = self.get_fitness_sum(population, env)
             best_ant = self.highest_fitness(population)
             # print('best ant prob: ', best_ant.exploration_prob)
             fitness_history.append(f)
@@ -151,44 +157,44 @@ class EvolutionaryAlgorithm:
 
         return fitness_history
 
-    def run_generation(self, population, exploration, steering, pheromone, speed):
+    def run_generation(self, population):
         new_population = []
 
         for i in range(len(population)):
-
             parent1, parent2 = self.select_parents(population)  # TODO 4 pick parents
 
-            child = self.crossover(parent1, parent2, exploration=exploration, steering=steering, pheromone=pheromone,
-                                   speed=speed)  # TODO 5 breed parents
+            child = self.crossover(parent1, parent2)  # TODO 5 breed parents
 
-            if random.random() < MUTATION_RATE:  # TODO 6 mutate children
-                child = self.mutate(child, exploration=exploration, steering=steering, pheromone=pheromone, speed=speed)
+            # if random.random() < self.MUTATION_RATE:  # TODO 6 mutate children
+            child = self.mutate(child)
+
             new_population.append(child)
 
-        env = Environment(ANT_POPULATION, sim_mode=sim_mode, ants=new_population)
+        env = Environment(self.ANT_POPULATION, sim_mode=self.sim_mode, ants=new_population)
         env.run_frames(amount_of_runs=self.simulation_length)
         new_population = env.return_ants()
         # get_fitness_sum(new_population, env)
         return new_population
 
 
-max_steering = 5
-exploration_prob = 0.3
-ph_decay = 0.5
-detection_range = 30
-simulation_length = 2000
+_simulation_length = 2000
 
-steering_genetic = True
-exploration_genetic = True
-ph_genetic = True
-detection_genetic = True
+_max_steering = 5
+_exploration_prob = 0.3
+_ph_decay = 0.5
+_detection_range = 30
 
-ea = EvolutionaryAlgorithm(max_steering=max_steering, exploration_prob=exploration_prob, ph_decay=ph_decay,
-                           detection_range=detection_range, simulation_length=simulation_length,
-                           steering_genetic=steering_genetic, exploration_genetic=exploration_genetic, ph_genetic=ph_genetic, detection_genetic=detection_genetic)
+_steering_genetic = True
+_exploration_genetic = True
+_ph_genetic = True
+_detection_genetic = True
 
-fitness_history = ea.run_genetic_algorithm(amount_of_runs=2000, exploration=True, steering=True, pheromone=True,
-                                        speed=True)
+ea = EvolutionaryAlgorithm(simulation_length=_simulation_length, max_steering=_max_steering,
+                           exploration_prob=_exploration_prob, ph_decay=_ph_decay, detection_range=_detection_range,
+                           steering_genetic=_steering_genetic, exploration_genetic=_exploration_genetic,
+                           ph_genetic=_ph_genetic, detection_genetic=_detection_genetic)
+
+fitness_history = ea.run_genetic_algorithm()
 
 # Plot the fitness progress
 plt.plot(range(len(fitness_history)), fitness_history)
