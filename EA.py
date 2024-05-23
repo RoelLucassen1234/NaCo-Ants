@@ -5,6 +5,8 @@ from revised.Environment import Environment
 import math
 import matplotlib.pyplot as plt  # Import matplotlib for plotting
 
+from revised.boid import Boid
+
 ANT_POPULATION = 50
 GENERATION = 100
 MUTATION_RATE = 0.1
@@ -17,7 +19,7 @@ def initial_direction() -> float:
     # Generate a random angle between 0 and 2*pi
     angle = random.uniform(0, 2 * math.pi)
     # Adjust the angle to make the movement less jittery
-    angle += random.uniform(-5, 5)
+    angle += random.randrange(0, 100)
     return angle
 
 
@@ -37,6 +39,8 @@ def generate_initial_population(number_of_ants):
 
     return population, init_exploration_prob
 
+
+import random
 
 def select_parents(population):
     # Select two parents from the population using tournament selection

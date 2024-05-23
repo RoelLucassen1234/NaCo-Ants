@@ -12,7 +12,7 @@ class Boid():
     def __init__(self, exploration_prob=0.5):
         self.current_direction = None
         self.position = [100, 100]
-        self.acceleration = [1, 1]
+        self.acceleration = [0, 0]
         self.previous_acc = [0, 0]
         self.velocity = [1, 1]
         self.steering = 0
@@ -37,6 +37,7 @@ class Boid():
         self.p_drop = 16  # Dropping every 10 frames
 
         self.p_drop_current = 0
+        self.steps_to_home = 0
 
         # Steps to home
         self.steps_to_home = 0
@@ -135,13 +136,13 @@ class Boid():
                     perturbation = random.uniform(-0.2, 0.2)
                     perturbation2 = random.uniform(-0.2, 0.2)
 
-                    # Apply the perturbation to both x and y components of the velocity
+                    # # Apply the perturbation to both x and y components of the velocity
                     self.acceleration[0] += perturbation
                     self.acceleration[1] += perturbation2
 
-                    # self.velocity[0] += self.acceleration[0]
-                    # self.velocity[1] += self.acceleration[1]
-                    # self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
+                    self.velocity[0] += self.acceleration[0]
+                    self.velocity[1] += self.acceleration[1]
+                    self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
             return
 
