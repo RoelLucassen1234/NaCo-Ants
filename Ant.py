@@ -9,13 +9,20 @@ from Task import Tasks
 
 class Ant():
 
-    def __init__(self, exploration_prob=0.5):
+    def __init__(self, exploration_prob=0.5, max_steering = 15, position=[100,100]):
         self.current_direction = None
-        self.position = [100, 100]
+
+        self.position = position
+
         self.acceleration = [0, 0]
-        self.previous_acc = [0, 0]
         self.velocity = [1, 1]
         self.steering = 0
+
+        #Genetic Properties
+        self.max_steering = max_steering
+        self.exploration_prob = exploration_prob
+        self.ph_decay = 1
+        self.detection_range = 30
 
         self.speed = 1
         self.fitness = 0
@@ -23,24 +30,20 @@ class Ant():
         self.detected_objects = []
 
         # Detection
-        self.detection_range = 30
+
         self.current_task = Tasks.FindHome
 
-        # Exploration
-        self.exploration_prob = exploration_prob
 
         # Time
         self.time_spend = 0
 
         # Pheromones
 
-        self.p_drop = 16  # Dropping every 10 frames
-
+        self.ph_tick = 16  # Dropping every 10 frames
+        #Statistics
         self.p_drop_current = 0
         self.steps_to_home = 0
 
-        # Steps to home
-        self.steps_to_home = 0
 
     def scan_objects_in_radius(self, objects):
         self.detected_objects = []
@@ -156,8 +159,6 @@ class Ant():
 
     def update_position(self, boundaries):
 
-        if self.acceleration == [0, 0]:
-            self.acceleration = self.previous_acc
 
         self.velocity = [self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1]]
 
@@ -197,9 +198,9 @@ class Ant():
     def drop_pheromones(self):
 
         if self.current_task == Tasks.GatherAnts:
-            if self.p_drop == self.p_drop_current:
+            if self.ph_tick == self.p_drop_current:
                 self.p_drop_current = 0
-                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundHome, pheromone_strength=1)
+                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundHome, pheromone_strength=self.ph_decay)
             else:
                 self.p_drop_current += 1
 
