@@ -9,7 +9,7 @@ from Task import Tasks
 random.seed(10)
 class Ant():
 
-    def __init__(self, max_steering=15, exploration_prob=0.5, ph_decay=15, detection_range=30, position=[100, 100]):
+    def __init__(self, max_steering=15, exploration_prob=0.3, ph_decay=15, detection_range=30, position=[100, 100]):
         self.current_direction = None
 
         self.position = position
@@ -42,6 +42,7 @@ class Ant():
         # Statistics
         self.p_drop_current = 0
         self.steps_to_home = 0
+        self.initial_position = position
 
     def scan_objects_in_radius(self, objects):
         self.detected_objects = []
@@ -122,17 +123,18 @@ class Ant():
                 explore = self.exploration_prob
             if random.random() < explore:
                 # Explore: Perturb the current direction by roughly 20%
+
                 if self.velocity:  # Check if velocity exists
                     # Calculate the perturbation
                     perturbation = random.uniform(-0.2, 0.2)
                     perturbation2 = random.uniform(-0.2, 0.2)
 
-                    # # Apply the perturbation to both x and y components of the velocity
-                    self.acceleration[0] += perturbation
-                    self.acceleration[1] += perturbation2
-
-                    self.velocity[0] += self.acceleration[0]
-                    self.velocity[1] += self.acceleration[1]
+                    # # # Apply the perturbation to both x and y components of the velocity
+                    # self.acceleration[0] += perturbation
+                    # self.acceleration[1] += perturbation2
+                    #
+                    # self.velocity[0] += self.acceleration[0]
+                    # self.velocity[1] += self.acceleration[1]
                     self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
             return

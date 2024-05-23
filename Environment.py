@@ -47,23 +47,25 @@ class Environment:
         return self.ants
 
 
-    def calculate_loss(self, ant, simulation_length=2000):
-        ant_found_home = 0
-
-        # Did the ant find the nest
-        if ant.current_task == Tasks.GatherAnts:
-            # ant_found_home = 1
-            # The steps the ant took to get to the nest
-            steps_to_home = ant.steps_to_home
-            loss = (simulation_length - steps_to_home) / simulation_length
-        else:
-            loss = 0
-
-        # loss = ants_found_food + (ants_at_food / len(self.ants))
-        # loss = ants_found_home + ((amount_of_runs - steps_to_home) / amount_of_runs)
-        # loss = ant_found_home + (amount_of_runs - steps_to_home)
-        loss += 0.005
-        return loss
+    # def calculate_loss(self, ant, simulation_length=2000):
+    #     ant_found_home = 0
+    #     distance_from_home =
+    #
+    #     # Did the ant find the nest
+    #     if ant.current_task == Tasks.GatherAnts:  # found home
+    #         # ant_found_home = 1
+    #         # The steps the ant took to get to the nest
+    #         steps_to_home = ant.steps_to_home
+    #         loss = (simulation_length - steps_to_home)  #
+    #
+    #     else:  # not found home
+    #         loss = max_distance - distance_from_home
+    #
+    #     # loss = ants_found_food + (ants_at_food / len(self.ants))
+    #     # loss = ants_found_home + ((amount_of_runs - steps_to_home) / amount_of_runs)
+    #     # loss = ant_found_home + (amount_of_runs - steps_to_home)
+    #     loss += 0.005
+    #     return loss
 
     def ant_logic(self):
 
@@ -108,7 +110,7 @@ class Environment:
 
     def draw_nest(self, screen):
         objects = self.spatial_hash_grid.get_objects_of_type(Nest)
-
+        print(len(objects))
         for obj in objects:
             pygame.draw.circle(screen, (144, 144, 0), (int(obj.position[0]), int(obj.position[1])), 4)
 
