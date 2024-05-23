@@ -3,7 +3,7 @@ import random
 from Environment import Environment
 import math
 import matplotlib.pyplot as plt  # Import matplotlib for plotting
-
+import numpy as np
 from Ant import Ant
 
 
@@ -13,10 +13,10 @@ class EvolutionaryAlgorithm:
 
         self.simulation_length = simulation_length
 
-        self.max_steering = max_steering
-        self.exploration_prob = exploration_prob
-        self.ph_decay = ph_decay
-        self.detection_range = detection_range
+        # self.max_steering = max_steering
+        # self.exploration_prob = exploration_prob
+        # self.ph_decay = ph_decay
+        # self.detection_range = detection_range
 
         self.steering_genetic = steering_genetic
         self.exploration_genetic = exploration_genetic
@@ -28,7 +28,7 @@ class EvolutionaryAlgorithm:
         self.MUTATION_RATE = 0.1
         self.EPSILON = 0.1
         self.sim_mode = "EXP"
-        random.seed(10)
+        # random.seed(10)
 
     # def initial_direction(self) -> float:
     #     # Generate a random angle between 0 and 2*pi
@@ -38,19 +38,19 @@ class EvolutionaryAlgorithm:
     #     return angle
 
     def initial_max_steering(self) -> float:
-        prob = random.random()
+        prob = random.uniform(0.01,0.5)
         return prob
 
     def initial_exploration_prob(self) -> float:
-        prob = random.random()
+        prob = random.uniform(0.01,0.8)
         return prob
 
     def initial_pheromone_decay(self) -> float:
-        prob = random.random()
+        prob = random.uniform(1,3)
         return prob
 
     def initial_detection_range(self) -> float:
-        prob = random.random()
+        prob = random.uniform(25,80)
         return prob
 
     def generate_initial_population(self, number_of_ants):
@@ -64,53 +64,68 @@ class EvolutionaryAlgorithm:
 
             population.append(Ant(max_steering=steering, exploration_prob=explor_prob, ph_decay=decay, detection_range=detect_range))
 
+
         return population
 
     def select_parents(self, population):
-        # Select two parents from the population using tournament selection
-        parent1 = max(population, key=lambda ant: ant.fitness)
-        remaining_population = [ant for ant in population if ant != parent1]
-        parent2 = max(remaining_population, key=lambda ant: ant.fitness)
-        # parent1 = max(random.sample(population, k=5), key=lambda ant: ant.fitness)
-        # parent2 = max(random.sample(population, k=5), key=lambda ant: ant.fitness)
-        return parent1, parent2
+        # Helper function to select an individual based on fitness probabilities
+        def select_based_on_probability(ants):
+            total_fitness = sum(ant.fitness for ant in ants)
+            probabilities = [ant.fitness / total_fitness for ant in ants]
+            return np.random.choice(ants, p=probabilities)
+
+        # Sort the population by fitness in descending order and select the top 5
+        k = 5
+        if k > len(population):
+            k = len(population)
+        top_5_ants = sorted(population, key=lambda ant: ant.fitness, reverse=True)[:k]
+        parent1 = select_based_on_probability(top_5_ants)
+
+        # Select parent 2: 5 random ants, choose the one with the highest fitness
+        sample_2 = random.sample(population, k=k)
+        parent2 = max(sample_2, key=lambda ant: ant.fitness)
+
+        remaining_population = [ant for ant in population if ant != parent1 and ant != parent2]
+
+        return parent1, parent2, remaining_population
 
     def crossover(self, parent1, parent2):
-        child = Ant()
+        child1 = Ant()
+        child2 = Ant()
 
         if self.steering_genetic:
-            child_steering = parent1.steering * 0.5 + parent2.steering * 0.5
-            child.steering = child_steering
+            child1.max_steering = parent1.max_steering * 0.6 + parent2.max_steering * 0.4
+            child2.max_steering = parent1.max_steering * 0.4 + parent2.max_steering * 0.6
 
-        if self.exploration_prob:
-            child_exploration = parent1.exploration_prob * 0.5 + parent2.exploration_prob * 0.5
-            child.exploration_prob = child_exploration
+        if self.exploration_genetic:
+            child1.exploration_prob =  parent1.exploration_prob * 0.6 + parent2.exploration_prob * 0.4
+            child2.exploration_prob =  parent1.exploration_prob * 0.4 + parent2.exploration_prob * 0.6
 
         if self.ph_genetic:
-            child_pheromone = parent1.ph_tick * 0.5 + parent2.ph_tick * 0.5
-            child.ph_tick = child_pheromone
+            child1.ph_tick = parent1.ph_tick * 0.6 + parent2.ph_tick * 0.4
+            child2.ph_tick = parent1.ph_tick * 0.4 + parent2.ph_tick * 0.6
 
         if self.detection_genetic:
-            child_detection = parent1.detection_range * 0.5 + parent2.detection_range * 0.5
-            child.detection_range = child_detection
+            child1.detection_range = parent1.detection_range * 0.6 + parent2.detection_range * 0.4
+            child2.detection_range = parent1.detection_range * 0.4 + parent2.detection_range * 0.6
 
-        return child
+        return child1, child2
 
     def mutate(self, ant):
         mutated_ant = Ant()
         if self.steering_genetic:
             if random.random() < self.MUTATION_RATE:
-                mutated_ant.steering = ant.steering * random.uniform(0.9, 1.1)
+                ant.max_steering = ant.max_steering * random.uniform(0.9, 1.1)
         if self.exploration_genetic:
             if random.random() < self.MUTATION_RATE:
-                mutated_ant.exploration_prob = ant.exploration_prob * random.uniform(0.9, 1.1)
+                ant.exploration_prob = ant.exploration_prob * random.uniform(0.9, 1.1)
         if self.ph_genetic:
             if random.random() < self.MUTATION_RATE:
-                mutated_ant.ph_tick = ant.ph_tick * random.uniform(0.9, 1.1)
+                ant.ph_tick = ant.ph_tick * random.uniform(0.9, 1.1)
         if self.detection_genetic:
             if random.random() < self.MUTATION_RATE:
-                mutated_ant.detection_range = ant.detection_range * random.uniform(0.9, 1.1)
-        return mutated_ant
+                ant.detection_range = ant.detection_range * random.uniform(0.9, 1.1)
+        return ant
 
     def get_fitness_sum(self, population, env):
         # Calculate the sum of the fitness values of all ants in the population
@@ -137,6 +152,7 @@ class EvolutionaryAlgorithm:
         # TODO 1 Generate initial parameters
         population = self.generate_initial_population(self.ANT_POPULATION)
 
+
         env = Environment(self.ANT_POPULATION, sim_mode=self.sim_mode, ants=population)
         fitness_history = []
         self.get_fitness_sum(population, env)
@@ -146,10 +162,12 @@ class EvolutionaryAlgorithm:
         # TODO 2 run the model x times
         for i in range(self.GENERATION):
             # TODO 3 calculate loss function
+
             population = self.run_generation(population)
+
             f = self.get_fitness_sum(population, env)
             best_ant = self.highest_fitness(population)
-            # print('best ant prob: ', best_ant.exploration_prob)
+            self.top_5_highest_fitness_ants(population)
             fitness_history.append(f)
             print(i)
 
@@ -157,19 +175,33 @@ class EvolutionaryAlgorithm:
 
         return fitness_history
 
+    def top_5_highest_fitness_ants(self, population):
+
+        sorted_ants = sorted(population, key=lambda ant: ant.fitness, reverse=True)
+        top_5_ants = sorted_ants[:5]
+        i = 1
+        for best_ant in top_5_ants:
+            print(
+                f'Best Ant {i}: expl_prob: {best_ant.exploration_prob}, detection_range = {best_ant.detection_range}, steering: {best_ant.max_steering}. fitness: {best_ant.fitness}  ', )
+            i += 1
     def run_generation(self, population):
         new_population = []
+        remaining_population = population
+        for i in range(int(len(population)/2)):
+            parent1, parent2, remaining_population = self.select_parents(remaining_population)  # TODO 4 pick parents
 
-        for i in range(len(population)):
-            parent1, parent2 = self.select_parents(population)  # TODO 4 pick parents
-
-            child = self.crossover(parent1, parent2)  # TODO 5 breed parents
+            child1, child2 = self.crossover(parent1, parent2)  # TODO 5 breed parents
 
             # if random.random() < self.MUTATION_RATE:  # TODO 6 mutate children
-            child = self.mutate(child)
+            child1 = self.mutate(child1)
+            child2 = self.mutate(child2)
 
-            new_population.append(child)
 
+            new_population.append(child1)
+            new_population.append(child2)
+
+
+        print(f"new Popilation Amount {len(new_population)}")
         env = Environment(self.ANT_POPULATION, sim_mode=self.sim_mode, ants=new_population)
         env.run_frames(amount_of_runs=self.simulation_length)
         new_population = env.return_ants()
@@ -202,3 +234,5 @@ plt.xlabel('Generation')
 plt.ylabel('Fitness')
 plt.title('Fitness Progress')
 plt.show()
+
+

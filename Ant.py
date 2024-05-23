@@ -6,7 +6,7 @@ from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
 from Task import Tasks
 
-
+random.seed(10)
 class Ant():
 
     def __init__(self, max_steering=15, exploration_prob=0.5, ph_decay=15, detection_range=30, position=[100, 100]):
@@ -83,11 +83,10 @@ class Ant():
     def get_steering_force(self, target):
         desired = (target[0] - self.position[0], target[1] - self.position[1])
         steering = (desired[0] - self.velocity[0], desired[1] - self.velocity[1])
-        max_steering_force = 0.10  # Adjust as needed
 
         magnitude = math.sqrt(steering[0] ** 2 + steering[1] ** 2)
-        if magnitude > max_steering_force:
-            scaled_vector = (steering[0] * max_steering_force / magnitude, steering[1] * max_steering_force / magnitude)
+        if magnitude > self.max_steering:
+            scaled_vector = (steering[0] * self.max_steering / magnitude, steering[1] * self.max_steering / magnitude)
             return scaled_vector
         else:
             return steering
