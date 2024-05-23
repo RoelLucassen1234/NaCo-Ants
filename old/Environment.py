@@ -143,7 +143,7 @@ class Environment:
         screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Ant Walking")
         clock = pygame.time.Clock()
-        boundaries = [(0, 0), (self.width, self.height)]
+        # boundaries = [(0, 0), (self.width, self.height)]
         # spatial_hash_grid = SpatialHashGrid(cell_size=200)
         while True:
             for event in pygame.event.get():

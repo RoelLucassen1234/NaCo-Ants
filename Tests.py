@@ -17,11 +17,12 @@ from helpers import SpatialHashGrid
 class Tasks(Enum):
     FindHome = 1
     FindFood = 2
-    GatherAnts=3
+    GatherAnts = 3
 
 
 class Ant:
-    def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1, direction = 0, current_task = Tasks.FindFood):
+    def __init__(self, x=100, y=100, speed=0.1, steering=5, wandering_strength=1, direction=0, exploration=0.5,
+                 current_task=Tasks.FindFood):
         self.position = np.zeros(2)
         self.position[0] = x
         self.position[1] = y
@@ -49,14 +50,17 @@ class Ant:
         self.max_speed = 1
         self.rotation = 0
 
-
         self.fitness = 0
+        self.exploration = 0.5
+
         self.width = 1
         self.height = 1
 
         self.acceleration = [0, 0]
         self.velocity = [speed * math.cos(self.current_direction), speed * math.sin(self.current_direction)]
         self.pheromoneStrenth = 20
+        self.steps_to_home = 0
+
 
     def random_steering(self):
         # Generate a random angle between 0 and 2*pi
@@ -71,7 +75,6 @@ class Ant:
             angle = self.current_direction + angle_offset + self.rotation
             sensor_pos.x = self.position[0] + self.sensor_dst * math.cos(angle)
             sensor_pos.y = self.position[1] + self.sensor_dst * math.sin(angle)
-
 
     def detect_collision(self, obj):
         """
@@ -113,7 +116,7 @@ class Ant:
 
         return self.detected_objects
 
-    def get_steering_force(self,target, current, velocity):
+    def get_steering_force(self, target, current, velocity):
         desired = (target[0] - current[0], target[1] - current[1])
         steering = (desired[0] - velocity[0], desired[1] - velocity[1])
         return steering[0] * 0.03, steering[1] * 0.07
@@ -130,6 +133,7 @@ class Ant:
             return scaled_vector
         else:
             return vector
+
     def periodic_direction_update(self, pheromones, stats, boundaries):
         target = self.detect_target()
 
@@ -148,12 +152,10 @@ class Ant:
         self.acceleration = [self.acceleration[0] + steering_force[0],
                              self.acceleration[1] + steering_force[1]]
 
-
-        #self.calculate_steering_force(target)
+        # self.calculate_steering_force(target)
         self.check_boundaries(boundaries)
         # self.update_rotation()
         self.update_direction()
-
 
     def detect_target(self):
         oldest_pheromone_position = None
@@ -178,9 +180,6 @@ class Ant:
                         oldest_pheromone_position = obj.position
         return oldest_pheromone_position
 
-
-
-
     def set_random_direction(self):
         # current_direction = math.atan2(self.velocity[1], self.velocity[0])
         random_angle = random.uniform(self.current_direction - math.pi / 2, self.current_direction + math.pi / 2)
@@ -199,7 +198,6 @@ class Ant:
         self.acceleration = [self.acceleration[0] + steering_force[0] * steering_factor,
                              self.acceleration[1] + steering_force[1] * steering_factor]
 
-
     def update_direction(self):
         self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
@@ -212,7 +210,7 @@ class Ant:
         #
 
         for obj in self.detected_objects:
-            if isinstance(obj,Food):
+            if isinstance(obj, Food):
                 if self.detect_collision(obj):
                     self.velocity = [-self.velocity[0], -self.velocity[1]]
                     self.current_task = Tasks.GatherAnts
@@ -252,8 +250,6 @@ class Ant:
         # Reset acceleration
         self.acceleration = [0, 0]
 
-
-
         end_time = time.time()  # Stop measuring time
         execution_time = end_time - start_time
         # print("update_position execution time:", execution_time, "seconds")
@@ -289,8 +285,10 @@ class Ant:
         elif self.current_task == Tasks.FindFood and self.found_home == True:
             return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundHome)
         elif self.current_task == Tasks.GatherAnts and self.found_home == True:
-            return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood,pheromone_strength=1)
+            return Pheromone(self.position, 100, pheromone_type=PheromonesTypes.FoundFood, pheromone_strength=1)
 
+    def set_fitness(self, val):
+        self.fitness = val
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -298,7 +296,6 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 ant = Ant()
-
 
 
 def main():
@@ -375,7 +372,6 @@ def main():
         k += 1
         if k > 5:
             k = 0
-
 
 # if __name__ == "__main__":
 #     test()
