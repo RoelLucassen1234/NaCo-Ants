@@ -1,13 +1,13 @@
 import math
 import random
+from enum import Enum
 
-from Food import Food
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
-from Tests import Tasks
+from Task import Tasks
 
 
-class Boid():
+class Ant():
 
     def __init__(self, exploration_prob=0.5):
         self.current_direction = None
@@ -24,7 +24,7 @@ class Boid():
 
         # Detection
         self.detection_range = 30
-        self.current_task = Tasks.FindFood
+        self.current_task = Tasks.FindHome
 
         # Exploration
         self.exploration_prob = exploration_prob
@@ -60,19 +60,10 @@ class Boid():
         oldest_pheromone_age = float('inf')
 
         for obj in self.detected_objects:
-            if self.current_task == Tasks.FindFood and isinstance(obj, Food):
-                return obj.position
-            elif self.current_task == Tasks.FindHome and isinstance(obj, Nest):
+            if self.current_task == Tasks.FindHome and isinstance(obj, Nest):
                 return obj.position
             elif isinstance(obj, Pheromone):
-                if self.current_task == Tasks.FindFood and obj.type == PheromonesTypes.FoundFood:
-                    # print("CHECK")
-                    # print(f"ibj.life {obj.life} < {oldest_pheromone_age}")
-                    if obj.life < oldest_pheromone_age:
-                        oldest_pheromone_age = obj.life
-                        oldest_pheromone_position = obj.position
-
-                elif self.current_task == Tasks.FindHome and obj.type == PheromonesTypes.FoundHome:
+                if self.current_task == Tasks.FindHome and obj.type == PheromonesTypes.FoundHome:
                     if obj.life < oldest_pheromone_age:
                         oldest_pheromone_age = obj.life
                         oldest_pheromone_position = obj.position
@@ -113,7 +104,7 @@ class Boid():
     def check_collisions(self):
 
         for obj in self.detected_objects:
-            if isinstance(obj, Food):
+            if isinstance(obj, Nest):
                 if self.collision(obj):
                     self.velocity = [-self.velocity[0], -self.velocity[1]]
                     self.current_task = Tasks.GatherAnts
@@ -125,7 +116,7 @@ class Boid():
         if target is None:
             if self.current_task == Tasks.GatherAnts:
                 explore = self.exploration_prob
-            elif self.current_task == Tasks.FindFood:
+            elif self.current_task == Tasks.FindHome:
                 explore = self.exploration_prob
             else:
                 explore = self.exploration_prob
@@ -208,8 +199,7 @@ class Boid():
         if self.current_task == Tasks.GatherAnts:
             if self.p_drop == self.p_drop_current:
                 self.p_drop_current = 0
-
-                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundFood, pheromone_strength=1)
+                return Pheromone(self.position, 1600, pheromone_type=PheromonesTypes.FoundHome, pheromone_strength=1)
             else:
                 self.p_drop_current += 1
 

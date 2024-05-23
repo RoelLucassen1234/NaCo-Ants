@@ -4,11 +4,12 @@ class Nest:
 
     """
 
-    def __init__(self):
+    def __init__(self, position):
         """Gives a random position to the object and displays it in a tkinter canvas
         """
-        self.width = 1
-        self.height = 1
+        self.width = 5
+        self.height = 5
+        self.position = position
         self.posx = random.randrange(0, 100)
         self.posy = random.randrange(0, 100)
 

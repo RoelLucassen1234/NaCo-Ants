@@ -1,11 +1,10 @@
 import random
 # from Tests import Ant, Tasks
-from revised.boid import Boid
-from revised.Environment import Environment
+from Environment import Environment
 import math
 import matplotlib.pyplot as plt  # Import matplotlib for plotting
 
-from revised.boid import Boid
+from Ant import Ant
 
 ANT_POPULATION = 50
 GENERATION = 100
@@ -35,7 +34,7 @@ def generate_initial_population(number_of_ants):
     for i in range(number_of_ants):
         explor_prob = initial_exploration_prob()
         init_exploration_prob.append(explor_prob)
-        population.append(Boid(exploration_prob=explor_prob))
+        population.append(Ant(exploration_prob=explor_prob))
 
     return population, init_exploration_prob
 
@@ -58,7 +57,7 @@ def crossover(parent1, parent2, exploration, steering, pheromone, speed):
     #
     # # Perform crossover for steering
 
-    child = Boid()
+    child = Ant()
 
     if exploration:
         child_exploration = parent1.exploration_prob * 0.5 + parent2.exploration_prob * 0.5
@@ -86,7 +85,7 @@ def crossover(parent1, parent2, exploration, steering, pheromone, speed):
 def mutate(ant, exploration, steering, pheromone, speed):
     # Perform mutation on an ant's path
     # mutated_ant = Boid(exploration_prob=ant.exploration_prob * random.uniform(0.9, 1.1))
-    mutated_ant = Boid()
+    mutated_ant = Ant()
     if exploration:
         mutated_ant.exploration_prob = ant.exploration_prob * random.uniform(0.9, 1.1)
     if steering:
