@@ -13,8 +13,6 @@ class Pheromone:
 
         """
         self.idx = random.randrange(0,10000)
-        self.width = 1
-        self.height = 1
         self.position = pos
         self.life = lifetime
         self.max_life = lifetime

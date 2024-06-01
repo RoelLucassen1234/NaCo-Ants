@@ -2,10 +2,12 @@ import sys
 import pygame
 
 from Nest import Nest
-from Pheromone import Pheromone
+from Pheromone import Pheromone, PheromonesTypes
 from SpatialHashGrid import SpatialHashGrid
-from Ant import Ant
+from foodV1.Ant import Ant
+from foodV1.Food import Food
 from Task import Tasks
+import random
 
 
 class Environment:
@@ -13,9 +15,10 @@ class Environment:
     """
 
     def __init__(self, ant_number, sim_mode, ants=[]):
-        self.width = 900
-        self.height = 900
+        self.width = 300
+        self.height = 300
         self.spatial_hash_grid = SpatialHashGrid(cell_size=200)
+
 
         if sim_mode == "free":
             self.ant_number = ant_number
@@ -25,12 +28,14 @@ class Environment:
             # # Birth of ants - List contains all ants object
             # self.ant_data = [Ant(x,y) for i in range(self.ant_number)]
 
-            self.nest = Nest([600, 600])
+            self.nest = Nest([100, 150])
+            self.food = Food(position=[200, 150])
+
             self.spatial_hash_grid.add_object(self.nest)
+            self.spatial_hash_grid.add_object(self.food)
 
             self.boundaries = [(0, 0), (self.width, self.height)]
 
-            self.spatial_hash_grid = SpatialHashGrid(cell_size=200)
             self.ants = [Ant(position=[self.nest.position[0], self.nest.position[1]]) for _ in range(self.ant_number)]
 
         elif sim_mode == "EXP":
@@ -46,34 +51,14 @@ class Environment:
     def return_ants(self):
         return self.ants
 
-
-    # def calculate_loss(self, ant, simulation_length=2000):
-    #     ant_found_home = 0
-    #     distance_from_home =
-    #
-    #     # Did the ant find the nest
-    #     if ant.current_task == Tasks.GatherAnts:  # found home
-    #         # ant_found_home = 1
-    #         # The steps the ant took to get to the nest
-    #         steps_to_home = ant.steps_to_home
-    #         loss = (simulation_length - steps_to_home)  #
-    #
-    #     else:  # not found home
-    #         loss = max_distance - distance_from_home
-    #
-    #     # loss = ants_found_food + (ants_at_food / len(self.ants))
-    #     # loss = ants_found_home + ((amount_of_runs - steps_to_home) / amount_of_runs)
-    #     # loss = ant_found_home + (amount_of_runs - steps_to_home)
-    #     loss += 0.005
-    #     return loss
-
     def ant_logic(self):
 
         # ants doing ant stuff
         for ant in self.ants:
-            ant.scan_objects_in_radius(self.spatial_hash_grid)
-            ant.move_direction_update()
-            ant.update_position(self.boundaries)
+            ant.check_detected_objects(self.spatial_hash_grid)
+            print(len(ant.detected_objects))
+            ant.move_direction_update(boundaries=self.boundaries)
+            # ant.update_position(self.boundaries)
             ant.update_time_spend()
             # ant.detect_objects(self.spatial_hash_grid)
             #
@@ -97,27 +82,41 @@ class Environment:
 
         for ant in self.ants:
             if ant.current_task == Tasks.FindHome:
-                pygame.draw.circle(screen, (0, 255, 0), (int(ant.position[0]), int(ant.position[1])), 1)
+                pygame.draw.circle(screen, (128, 0, 128), (int(ant.position[0]), int(ant.position[1])), 2)
             else:
-                pygame.draw.circle(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])), 1)
+                pygame.draw.circle(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])), 2)
 
-            # for obj in ant.detected_objects:
-            #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-            #                      (int(obj.position[0]), int(obj.position[1])), 1)
+                # Draw sensor lines
+            # left_sens, mid_sens, right_sens = ant.calculate_sensor_points()
+            # pygame.draw.line(screen, (0, 255, 0), ant.position, left_sens, 1)
+            # pygame.draw.line(screen, (0, 255, 0), ant.position, mid_sens, 1)
+            # pygame.draw.line(screen, (0, 255, 0), ant.position, right_sens, 1)
+            for obj in ant.detected_objects:
+                pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
+                                 (int(obj.position[0]), int(obj.position[1])), 1)
 
-            pygame.draw.circle(screen, (0, 0, 255), (int(ant.position[0]), int(ant.position[1])),
-                               int(ant.detection_range), 1)
+            # pygame.draw.circle(screen, (0, 0, 255), (int(ant.position[0]), int(ant.position[1])),
+            #                    int(ant.detection_range), 1)
 
     def draw_nest(self, screen):
         objects = self.spatial_hash_grid.get_objects_of_type(Nest)
-        print(len(objects))
+
         for obj in objects:
-            pygame.draw.circle(screen, (144, 144, 0), (int(obj.position[0]), int(obj.position[1])), 4)
+            pygame.draw.circle(screen, (144, 144, 0), (int(obj.position[0]), int(obj.position[1])), 8)
+
+    def draw_food(self, screen):
+        objects = self.spatial_hash_grid.get_objects_of_type(Food)
+
+        for obj in objects:
+            pygame.draw.circle(screen, (0, 255, 0), (int(obj.position[0]), int(obj.position[1])),  8)
 
     def draw_pheromones(self, screen):
         for p in self.spatial_hash_grid.get_objects_of_type(Pheromone):
             alpha = int((255 * p.life) / p.max_life)
-            color = pygame.Color(165, 42, 42)
+            if p.type == PheromonesTypes.FoundHome:
+                color = pygame.Color(165, 42, 42)
+            else:
+                color = pygame.Color(0, 0, 255)
             color.a = alpha  # White color with alpha channel
 
             # Draw the pheromone as a rectangle with adjusted color opacity
@@ -135,12 +134,11 @@ class Environment:
         BLUE = (0, 0, 255)
 
         pygame.init()
+        self.spatial_hash_grid.add_object(self.nest)
         screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Ant Walking")
         clock = pygame.time.Clock()
         boundaries = [(0, 0), (self.width, self.height)]
-
-        # spatial_hash_grid = SpatialHashGrid(cell_size=200)
 
         while amount_of_runs > 0:
             for event in pygame.event.get():
@@ -167,9 +165,11 @@ class Environment:
             self.ant_logic()
             self.env_pheromone_logic()
 
-            self.draw_ants(screen)
+
             self.draw_pheromones(screen)
             self.draw_nest(screen)
+            self.draw_food(screen)
+            self.draw_ants(screen)
             pygame.display.flip()
             clock.tick(100)
             amount_of_runs -= 1
@@ -199,6 +199,6 @@ class Environment:
     #     # loss = ant_found_home + (amount_of_runs - steps_to_home)
     #     return loss
 
-# env = Environment(50, "free")
-#
-# env.run_simulation()
+env = Environment(42, "free")
+
+env.run_simulation()

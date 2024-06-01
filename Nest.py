@@ -7,8 +7,8 @@ class Nest:
     def __init__(self, position):
         """Gives a random position to the object and displays it in a tkinter canvas
         """
-        self.width = 5
-        self.height = 5
+        self.width = 8
+        self.height = 8
         self.position = position
         self.posx = random.randrange(0, 100)
         self.posy = random.randrange(0, 100)
