@@ -1,4 +1,6 @@
 import pygame
+import Nest
+from foodV1.Food import Food
 
 
 class SpatialHashGrid:
@@ -37,7 +39,7 @@ class SpatialHashGrid:
     def get_objects_in_cell(self, cell_key):
         return self.grid.get(cell_key, [])
 
-    def get_objects_nearby(self, obj, width=8):
+    def get_objects_nearby(self, obj, width=15):
         try:
 
             min_x = int(obj.position[0] / self.cell_size)
@@ -61,7 +63,8 @@ class SpatialHashGrid:
         for x in range(min_x, max_x + 1):
             for y in range(min_y, max_y + 1):
                 nearby_objects.extend(self.grid.get((x, y), []))
-
+        nearby_objects.extend(self.get_objects_of_type(Nest))
+        nearby_objects.extend(self.get_objects_of_type(Food))
         # Convert the list of dictionaries to a list of pygame.Vector2 objects
         # nearby_objects = [pygame.Vector2(obj['x'], obj['y']) for obj in nearby_objects]
         return nearby_objects

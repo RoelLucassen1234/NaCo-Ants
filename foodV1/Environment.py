@@ -91,9 +91,9 @@ class Environment:
             # pygame.draw.line(screen, (0, 255, 0), ant.position, left_sens, 1)
             # pygame.draw.line(screen, (0, 255, 0), ant.position, mid_sens, 1)
             # pygame.draw.line(screen, (0, 255, 0), ant.position, right_sens, 1)
-            for obj in ant.detected_objects:
-                pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
-                                 (int(obj.position[0]), int(obj.position[1])), 1)
+            # for obj in ant.detected_objects:
+            #     pygame.draw.line(screen, (255, 0, 0), (int(ant.position[0]), int(ant.position[1])),
+            #                      (int(obj.position[0]), int(obj.position[1])), 1)
 
             # pygame.draw.circle(screen, (0, 0, 255), (int(ant.position[0]), int(ant.position[1])),
             #                    int(ant.detection_range), 1)

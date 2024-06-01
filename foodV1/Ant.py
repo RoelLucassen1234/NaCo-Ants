@@ -23,7 +23,7 @@ class Ant():
         self.acceleration = [0, 0]
         self.velocity = [0, 0]
         self.steering = 1
-        self.angle = random.randint(0, 360)
+        self.angle = random.randint(0, 180)
         self.dDir = [cos(radians(self.angle)), sin(radians(self.angle))]
         self.nest = [100, 150]
 
@@ -189,7 +189,7 @@ class Ant():
                     return True
 
     def move_direction_update(self, boundaries, dt=1):
-        
+
         target = self.search_target()
 
         if target:
