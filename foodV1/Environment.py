@@ -1,6 +1,6 @@
 import sys
 import pygame
-
+from math import pi, sin, cos, atan2, radians, degrees
 from Nest import Nest
 from Pheromone import Pheromone, PheromonesTypes
 from SpatialHashGrid import SpatialHashGrid
@@ -15,10 +15,18 @@ class Environment:
     """
 
     def __init__(self, ant_number, sim_mode, ants=[]):
-        self.width = 300
-        self.height = 300
+        self.width = 1200
+        self.height = 800
         self.spatial_hash_grid = SpatialHashGrid(cell_size=200)
 
+        foodBits = 200
+        fRadius = 50
+        for i in range(0, foodBits):  # spawn food bits evenly within a circle
+            dist = pow(i / (foodBits - 1.0), 0.5) * fRadius
+            angle = 2 * pi * 0.618033 * i
+            fx = 200 + dist * cos(angle)
+            fy = 200 + dist * sin(angle)
+            self.spatial_hash_grid.add_object(Food((fx, fy)))
 
         if sim_mode == "free":
             self.ant_number = ant_number
@@ -28,7 +36,8 @@ class Environment:
             # # Birth of ants - List contains all ants object
             # self.ant_data = [Ant(x,y) for i in range(self.ant_number)]
 
-            self.nest = Nest([100, 150])
+
+            self.nest = Nest([self.width / 3, self.height / 2])
             self.food = Food(position=[200, 150])
 
             self.spatial_hash_grid.add_object(self.nest)
@@ -56,7 +65,7 @@ class Environment:
         # ants doing ant stuff
         for ant in self.ants:
             ant.check_detected_objects(self.spatial_hash_grid)
-            print(len(ant.detected_objects))
+            # print(len(ant.detected_objects))
             ant.move_direction_update(boundaries=self.boundaries)
             # ant.update_position(self.boundaries)
             ant.update_time_spend()
@@ -140,6 +149,9 @@ class Environment:
         clock = pygame.time.Clock()
         boundaries = [(0, 0), (self.width, self.height)]
 
+
+
+
         while amount_of_runs > 0:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -173,6 +185,11 @@ class Environment:
             pygame.display.flip()
             clock.tick(100)
             amount_of_runs -= 1
+        food = 0
+        for k in self.ants:
+            food += k.food_delivered
+
+        return food
 
     def run_frames(self, amount_of_runs=2000):
         i = 0
@@ -181,6 +198,14 @@ class Environment:
             self.ant_logic()
             self.env_pheromone_logic()
             i += 1
+
+
+        food = 0
+        for k in self.ants:
+            food += k.food_delivered
+
+
+        return food
 
     # def calculate_loss(self, ant, amount_of_runs):
     #     ant_found_home = 0
@@ -199,6 +224,17 @@ class Environment:
     #     # loss = ant_found_home + (amount_of_runs - steps_to_home)
     #     return loss
 
-env = Environment(42, "free")
 
-env.run_simulation()
+t = 100
+ants = 50
+food = []
+for i in range(t):
+
+    env = Environment(ants, "free")
+
+    f = env.run_simulation(amount_of_runs=1600)
+    food.append(f)
+    print(f"i: {i}")
+    print(f"--- total food: {sum(food)}")
+
+print(f"Total food over {t} iterations: {(sum(food) / t) / ants}")
