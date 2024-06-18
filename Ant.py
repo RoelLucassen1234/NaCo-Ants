@@ -9,7 +9,7 @@ from Task import Tasks
 random.seed(10)
 class Ant():
 
-    def __init__(self, max_steering=15, exploration_prob=0.5, ph_decay=15, detection_range=30, position=[100, 100]):
+    def __init__(self, max_steering=15, exploration_prob=0.5, ph_decay=2, detection_range=30, position=[100, 100]):
         self.current_direction = None
 
         self.position = position
@@ -38,10 +38,13 @@ class Ant():
 
         # Pheromones
 
-        self.ph_tick = 16  # Dropping every 10 frames
+        self.ph_tick = 2  # Dropping every 10 frames
         # Statistics
         self.p_drop_current = 0
         self.steps_to_home = 0
+
+        #Randomness:
+        # Define deterministic perturbations for exploration
 
     def scan_objects_in_radius(self, objects):
         self.detected_objects = []
@@ -182,7 +185,7 @@ class Ant():
             self.velocity = [-self.velocity[0], -self.velocity[1]]
 
         # self.check_boundaries(boundaries)
-
+        # print(self.acceleration)
         if self.velocity != [0, 0]:
             self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 

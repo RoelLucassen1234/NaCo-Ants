@@ -5,6 +5,7 @@ import math
 import matplotlib.pyplot as plt  # Import matplotlib for plotting
 import numpy as np
 from Ant import Ant
+from Task import Tasks
 
 
 class EvolutionaryAlgorithm:
@@ -13,10 +14,10 @@ class EvolutionaryAlgorithm:
 
         self.simulation_length = simulation_length
 
-        # self.max_steering = max_steering
-        # self.exploration_prob = exploration_prob
-        # self.ph_decay = ph_decay
-        # self.detection_range = detection_range
+        self.max_steering = max_steering
+        self.exploration_prob = exploration_prob
+        self.ph_decay = ph_decay
+        self.detection_range = detection_range
 
         self.steering_genetic = steering_genetic
         self.exploration_genetic = exploration_genetic
@@ -28,26 +29,19 @@ class EvolutionaryAlgorithm:
         self.MUTATION_RATE = 0.1
         self.EPSILON = 0.1
         self.sim_mode = "EXP"
-        # random.seed(10)
 
-    # def initial_direction(self) -> float:
-    #     # Generate a random angle between 0 and 2*pi
-    #     angle = random.uniform(0, 2 * math.pi)
-    #     # Adjust the angle to make the movement less jittery
-    #     angle += random.randrange(0, 100)
-    #     return angle
 
     def initial_max_steering(self) -> float:
-        prob = random.uniform(0.01,0.5)
+        prob = random.uniform(0.01,0.2)
         return prob
 
     def initial_exploration_prob(self) -> float:
-        prob = random.uniform(0.01,0.8)
+        prob = random.uniform(0.01,0.2)
         return prob
 
     def initial_pheromone_decay(self) -> float:
         prob = random.uniform(1,3)
-        return prob
+        return probs
 
     def initial_detection_range(self) -> float:
         prob = random.uniform(25,80)
@@ -57,10 +51,23 @@ class EvolutionaryAlgorithm:
         population = []
 
         for i in range(number_of_ants):
-            steering = self.initial_max_steering()
-            explor_prob = self.initial_exploration_prob()
-            decay = self.initial_pheromone_decay()
-            detect_range = self.initial_detection_range()
+            if self.steering_genetic:
+                steering = self.initial_max_steering()
+            else:
+                steering = self.max_steering
+
+            if self.exploration_genetic:
+                explor_prob = self.initial_exploration_prob()
+            else:
+                explor_prob = self.exploration_prob
+            if self.ph_genetic:
+                decay = self.initial_pheromone_decay()
+            else:
+                decay = self.ph_decay
+            if self.detection_genetic:
+                detect_range = self.initial_detection_range()
+            else:
+                detect_range = self.detection_range
 
             population.append(Ant(max_steering=steering, exploration_prob=explor_prob, ph_decay=decay, detection_range=detect_range))
 
@@ -86,6 +93,7 @@ class EvolutionaryAlgorithm:
         parent2 = max(sample_2, key=lambda ant: ant.fitness)
 
         remaining_population = [ant for ant in population if ant != parent1 and ant != parent2]
+
 
         return parent1, parent2, remaining_population
 
@@ -131,11 +139,39 @@ class EvolutionaryAlgorithm:
         # Calculate the sum of the fitness values of all ants in the population
         total_loss = 0
         for ant in population:
-            loss = env.calculate_loss(ant, simulation_length=self.simulation_length)
+            loss = self.calculate_loss(ant,env,_simulation_length)
+            # loss = env.calculate_loss(ant, simulation_length=self.simulation_length)
             ant.set_fitness(loss)
             total_loss += loss
         return total_loss
 
+    def calculate_loss(self, ant, env, simulation_length=2000):
+        def calculate_distance(point1, point2):
+            x1, y1 = point1
+            x2, y2 = point2
+
+            delta_x = x2 - x1
+            delta_y = y2 - y1
+
+            distance = math.sqrt(delta_x ** 2 + delta_y ** 2)
+
+            return distance
+
+        max_distance = calculate_distance([0, 0], [env.width, env.height])
+        distance_from_home = calculate_distance(ant.position, env.nest.position)
+
+        # Did the ant find the nest
+        if ant.current_task == Tasks.GatherAnts:  # Ant found home
+
+            steps_to_home = ant.steps_to_home
+            loss = ((simulation_length - steps_to_home) / simulation_length) + 0.5
+
+        else:  # Ant not found home
+            loss = ((max_distance - distance_from_home) / max_distance) / 2
+
+        if loss <= 0:
+            loss = 0.0001
+        return loss
     def highest_fitness(self, population):
         highest = float("-inf")
         ant = None
@@ -216,9 +252,9 @@ _exploration_prob = 0.3
 _ph_decay = 0.5
 _detection_range = 30
 
-_steering_genetic = True
-_exploration_genetic = True
-_ph_genetic = True
+_steering_genetic = False
+_exploration_genetic = False
+_ph_genetic = False
 _detection_genetic = True
 
 ea = EvolutionaryAlgorithm(simulation_length=_simulation_length, max_steering=_max_steering,
