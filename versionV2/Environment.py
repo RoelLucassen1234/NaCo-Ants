@@ -170,15 +170,6 @@ class Environment:
 
         return food
 
-# t = 100
-# ants = 50
-# food = []
-# for i in range(t):
 #
-#     env = Environment(ants, "free")
-#     f = env.run_simulation(amount_of_runs=1600)
-#     food.append(f)
-#     print(f"i: {i}")
-#     print(f"--- total food: {sum(food)}")
-#
-# print(f"Total food over {t} iterations: {(sum(food) / t) / ants}")
+# env = Environment(50, "free")
+# f = env.run_simulation(amount_of_runs=1600)
