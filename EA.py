@@ -1,10 +1,10 @@
 import random
 # from Tests import Ant, Tasks
-from Environment import Environment
+from old_versionV1.Environment import Environment
 import math
 import matplotlib.pyplot as plt  # Import matplotlib for plotting
 import numpy as np
-from Ant import Ant
+from old_versionV1.Ant import Ant
 from Task import Tasks
 
 
@@ -204,7 +204,7 @@ class EvolutionaryAlgorithm:
             fitness_history.append(f)
             print(i)
 
-        env.run_simulation(amount_of_runs=self.simulation_length)
+        env.run_frames(amount_of_runs=self.simulation_length)
 
         return fitness_history
 

@@ -8,8 +8,9 @@ from Task import Tasks
 
 random.seed(10)
 class Ant():
+    """"OLD VERSION: CREATED TO SEARCH FOR NEST ONLY, WITH NO PRIOR KNOWLEDGE OF THE LOCATION"""
 
-    def __init__(self, max_steering=15, exploration_prob=0.3, ph_decay=15, detection_range=30, position=[100, 100]):
+    def __init__(self, max_steering=15, exploration_prob=0.3, ph_decay=5, detection_range=30, position=[100, 100]):
         self.current_direction = None
 
         self.position = position
@@ -65,9 +66,9 @@ class Ant():
             if self.current_task == Tasks.FindHome and isinstance(obj, Nest):
                 return obj.position
             elif isinstance(obj, Pheromone):
-                if self.current_task == Tasks.FindHome and obj.type == PheromonesTypes.FoundHome:
-                    if obj.life < oldest_pheromone_age:
-                        oldest_pheromone_age = obj.life
+                if self.current_task == Tasks.FindHome and obj.pheromone_type == PheromonesTypes.FoundHome:
+                    if obj.current_strength < oldest_pheromone_age:
+                        oldest_pheromone_age = obj.current_strength
                         oldest_pheromone_position = obj.position
         return oldest_pheromone_position
 
@@ -76,8 +77,8 @@ class Ant():
         pos = None
         for obj in self.detected_objects:
             if type(obj) is Pheromone:
-                if obj.life < oldest:
-                    oldest = obj.life
+                if obj.current_strength < oldest:
+                    oldest = obj.current_strength
                     pos = obj.position
         return pos
 
@@ -130,11 +131,11 @@ class Ant():
                     perturbation2 = random.uniform(-0.2, 0.2)
 
                     # # # Apply the perturbation to both x and y components of the velocity
-                    # self.acceleration[0] += perturbation
-                    # self.acceleration[1] += perturbation2
-                    #
-                    # self.velocity[0] += self.acceleration[0]
-                    # self.velocity[1] += self.acceleration[1]
+                    self.acceleration[0] += perturbation
+                    self.acceleration[1] += perturbation2
+
+                    self.velocity[0] += self.acceleration[0]
+                    self.velocity[1] += self.acceleration[1]
                     self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
             return
@@ -188,9 +189,6 @@ class Ant():
         if self.velocity != [0, 0]:
             self.current_direction = math.atan2(self.velocity[1], self.velocity[0])
 
-        # # Reset acceleration
-        # if self.acceleration != [0,0]:
-        #     self.previous_acc = self.acceleration.copy()
         self.acceleration = [0, 0]
 
     def drop_pheromones(self):

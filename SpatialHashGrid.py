@@ -1,6 +1,6 @@
 import pygame
 import Nest
-from foodV1.Food import Food
+from versionV2.Food import Food
 
 
 class SpatialHashGrid:
@@ -39,7 +39,7 @@ class SpatialHashGrid:
     def get_objects_in_cell(self, cell_key):
         return self.grid.get(cell_key, [])
 
-    def get_objects_nearby(self, obj, width=15):
+    def get_objects_nearby(self, obj, width=10):
         try:
 
             min_x = int(obj.position[0] / self.cell_size)
@@ -102,17 +102,3 @@ class SpatialHashGrid:
 
     def get_objects_of_type(self, obj_type):
         return self.type_index.get(obj_type, [])
-
-    def detect_collision(self, position):
-        """
-        Detect collision with food at a given position.
-        Returns True if collision is detected, False otherwise.
-        """
-        cell_x = int(position[0] / self.cell_size)
-        cell_y = int(position[1] / self.cell_size)
-        nearby_objects = self.get_objects_in_cell((cell_x, cell_y))
-        for obj in nearby_objects:
-            # Assuming obj has a 'type' attribute to identify it as food
-            if obj.get('type') == 'food' and obj.get('position') == position:
-                return True
-        return False

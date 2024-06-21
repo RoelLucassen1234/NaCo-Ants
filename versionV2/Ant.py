@@ -1,21 +1,14 @@
 from math import sin,cos, atan2, radians, degrees ,sqrt
 import random
-from enum import Enum
-
-from foodV1.PheromoneGrid import PheromoneGrid
-
 from Nest import Nest
-from foodV1.Food import Food
+from versionV2.Food import Food
 from Pheromone import Pheromone, PheromonesTypes
 from Task import Tasks
-import numpy as np
-#
-# random.seed(10)
 
 
 class Ant():
-    def __init__(self, max_steering=1, exploration_prob=0.3, ph_decay=0.8, detection_range=70, position=[100, 100], ph_grid_size=[300,300], global_grid = None):
-        self.current_direction = None
+    def __init__(self, max_steering=1, exploration_prob=0.3, ph_decay=0.8, detection_range=70, position=[100, 100]):
+        #IDX
         self.idx = random.randrange(1000,100000)
 
         self.position = position
@@ -25,13 +18,8 @@ class Ant():
         self.velocity = [0, 0]
         self.steering = 1
         self.angle = random.randint(0, 360)
-        self.dDir = [cos(radians(self.angle)), sin(radians(self.angle))]
+        self.direction = [cos(radians(self.angle)), sin(radians(self.angle))]
         self.nest = position
-
-        #Test
-        self.ph_map = (int(ph_grid_size[0]/ 5), int(ph_grid_size[1] / 5))
-        self.isMyTrail = PheromoneGrid(ph_grid_size[0], ph_grid_size[1])
-        self.global_pheromone_grid = global_grid
 
 
         # Genetic Properties
@@ -40,25 +28,27 @@ class Ant():
         self.ph_decay = ph_decay
         self.detection_range = detection_range
 
-        self.speed = 0.6
+        self.speed = 1.5
         self.fitness = 0
 
-        self.detected_objects = []
-
         # Detection
-
+        self.detected_objects = []
+        #Task
         self.current_task = Tasks.FindFood
 
         # Time
         self.time_spend = 0
 
-        # Pheromones
+        # limit of Food Pheromone
         self.limit = 100
+        #Limit of Home pheromone
         self.limit_home_p = 40
-        self.ph_max = 0
-        self.ph_tick = 20  # Dropping every 10 frames
+
+        self.ph_max = 0 # Keeps track of how long pheromones have been dropping
+        self.ph_tick = 20  # Dropping P every amount of frames
+        self.p_drop_current = 0 #Checks at what frame it currently is
+
         # Statistics
-        self.p_drop_current = 0
         self.steps_to_home = 0
         self.initial_position = position
         self.test_steering = 0
@@ -70,13 +60,16 @@ class Ant():
 
         for obj in nearby_objects_around_ant:
             distance = sqrt((obj.position[0] - self.position[0]) ** 2 + (obj.position[1] - self.position[1]) ** 2)
-            # Get Radius around ant and object and check if within eachother
 
             if distance < self.detection_range:
                 self.detected_objects.append(obj)
 
         return self.detected_objects
+
+
     def search_target(self):
+        """"Searches through all existing objects within a certain radius and tries to find either the oldest pheromone
+        Or the Nest/ Food. Their own pheromones take priority."""
         oldest_pheromone_position = None
         oldest_pheromone_age = float('inf')
 
@@ -84,24 +77,22 @@ class Ant():
         ant_pheromone_oldest_pheromone_age = float('inf')
 
         for obj in self.detected_objects:
-            if self.current_task == Tasks.FindHome and isinstance(obj, Nest):
-                return obj.position
-            elif self.current_task == Tasks.FindFood and isinstance(obj,Food):
+            if self.current_task == Tasks.FindFood and isinstance(obj,Food):
                 return obj.position
             elif isinstance(obj, Pheromone):
-                if self.current_task == Tasks.FindHome and obj.type == PheromonesTypes.FoundHome:
-                    if obj.ant_p == self.idx and obj.life < ant_pheromone_oldest_pheromone_age:
+                if self.current_task == Tasks.FindHome and obj.pheromone_type == PheromonesTypes.FoundHome:
+                    if obj.ant_p == self.idx and obj.current_strength < ant_pheromone_oldest_pheromone_age:
                         ant_pheromone_position = obj.position
-                        ant_pheromone_oldest_pheromone_age = obj.life
-                    elif obj.life < oldest_pheromone_age:
-                        oldest_pheromone_age = obj.life
+                        ant_pheromone_oldest_pheromone_age = obj.current_strength
+                    elif obj.current_strength < oldest_pheromone_age:
+                        oldest_pheromone_age = obj.current_strength
                         oldest_pheromone_position = obj.position
-                elif self.current_task == Tasks.FindFood and obj.type == PheromonesTypes.FoundFood:
-                    if obj.ant_p == self.idx and obj.life < ant_pheromone_oldest_pheromone_age:
+                elif self.current_task == Tasks.FindFood and obj.pheromone_type == PheromonesTypes.FoundFood:
+                    if obj.ant_p == self.idx and obj.current_strength < ant_pheromone_oldest_pheromone_age:
                         ant_pheromone_position = obj.position
-                        ant_pheromone_oldest_pheromone_age = obj.life
-                    elif obj.life < oldest_pheromone_age:
-                        oldest_pheromone_age = obj.life
+                        ant_pheromone_oldest_pheromone_age = obj.current_strength
+                    elif obj.current_strength < oldest_pheromone_age:
+                        oldest_pheromone_age = obj.current_strength
                         oldest_pheromone_position = obj.position
 
         if ant_pheromone_position:
@@ -110,6 +101,7 @@ class Ant():
 
 
     def calculate_sensor_points(self):
+        """"Calculates the sensor locations in front of the ant usually after movement. There are 3 sensor points."""
         # Calculate sensor points relative to the ant's position and angle
         mid_sens_offset = (20, 0)
         left_sens_offset = (18, -8)
@@ -138,6 +130,7 @@ class Ant():
         # Check if the distance between the point and sensor_point is within a small radius
         distance_squared = (point[0] - sensor_point[0]) ** 2 + (point[1] - sensor_point[1]) ** 2
         return distance_squared <= self.detection_range ** 2
+
     def check_detected_objects(self, objects):
         left_sens, mid_sens, right_sens = self.calculate_sensor_points()
         self.detected_objects = []
@@ -202,154 +195,90 @@ class Ant():
             # Check if the distance is within the radius
             if distance <= radius:
                 return self.nest
-    def move_direction_update(self, boundaries, dt=1):
 
-        #check radius of ant
-        target = self.in_radius_of_food_or_nest()
-        if target is None:
-            target = self.search_target()
-
+    def move_direction_update(self, boundaries):
+        # Determine target direction
+        target = self.in_radius_of_food_or_nest() or self.search_target()
         if target:
-            target_dir = [target[0] - self.position[0], target[1] - self.position[1]]
-            target_dir_mag = sqrt(target_dir[0] ** 2 + target_dir[1] ** 2)
-            if target_dir_mag != 0:
-                target_dir = [target_dir[0] / target_dir_mag, target_dir[1] / target_dir_mag]
-
-            # Blend the target direction with current direction
-            self.dDir[0] += (target_dir[0] - self.dDir[0]) * 0.1  # 0.1 is the blend factor
-            self.dDir[1] += (target_dir[1] - self.dDir[1]) * 0.1
+            target_direction = [(target[0] - self.position[0]), (target[1] - self.position[1])]
+            target_magnitude = sqrt(target_direction[0] ** 2 + target_direction[1] ** 2)
+            if target_magnitude != 0:
+                target_direction = [target_direction[0] / target_magnitude, target_direction[1] / target_magnitude]
+            self.direction = [(self.direction[0] + (target_direction[0] - self.direction[0]) * 0.1),
+                              (self.direction[1] + (target_direction[1] - self.direction[1]) * 0.1)]
         else:
-            randAng = random.randint(0, 360)
-            randRad = radians(randAng)
-            randDir = [cos(randRad), sin(randRad)]
+            random_angle = radians(random.randint(0, 360))
+            random_direction = [cos(random_angle), sin(random_angle)]
+            self.direction = [self.direction[0] + random_direction[0] * self.exploration_prob,
+                              self.direction[1] + random_direction[1] * self.exploration_prob]
 
-            dDir_x = self.dDir[0] + randDir[0] * self.exploration_prob
-            dDir_y = self.dDir[1] + randDir[1] * self.exploration_prob
+        # Normalize direction
+        direction_magnitude = sqrt(self.direction[0] ** 2 + self.direction[1] ** 2)
+        if direction_magnitude != 0:
+            self.direction = [self.direction[0] / direction_magnitude, self.direction[1] / direction_magnitude]
 
-            dDir_mag = sqrt(dDir_x ** 2 + dDir_y ** 2)
-            if dDir_mag != 0:
-                self.dDir = [dDir_x / dDir_mag, dDir_y / dDir_mag]
+        # Calculate desired velocity and steering force
+        desired_velocity = [self.direction[0] * self.speed, self.direction[1] * self.speed]
+        steering_force = [(desired_velocity[0] - self.velocity[0]) * self.max_steering,
+                          (desired_velocity[1] - self.velocity[1]) * self.max_steering]
 
-            # if self.current_task == Tasks.FindHome:
-            #     # Calculate the vector from ant position to nest
-            #     vector_to_nest = [self.nest[0] - self.position[0], self.nest[1] - self.position[1]]
-            #
-            #     # Calculate the magnitude of the vector
-            #     magnitude = sqrt(vector_to_nest[0] ** 2 + vector_to_nest[1] ** 2)
-            #
-            #     # Normalize the vector
-            #     normalized_vector = [vector_to_nest[0] / magnitude, vector_to_nest[1] / magnitude]
-            #
-            #
-            #     # # Add the scaled vector to self.dDir
-            #     # self.dDir[0] += normalized_vector[0]
-            #     # self.dDir[1] += normalized_vector[1]
+        # Normalize steering force
+        steering_magnitude = sqrt(steering_force[0] ** 2 + steering_force[1] ** 2)
+        if steering_magnitude > self.steering:
+            steering_force = [steering_force[0] / steering_magnitude * self.max_steering,
+                              steering_force[1] / steering_magnitude * self.max_steering]
 
+        # Update velocity
+        self.velocity = [self.velocity[0] + steering_force[0],
+                         self.velocity[1] + steering_force[1]]
 
-        dzVel = [self.dDir[0] * self.speed, self.dDir[1] * self.speed]
-        dzStrFrc = [(dzVel[0] - self.velocity[0]) * self.max_steering, (dzVel[1] - self.velocity[1]) * self.max_steering]
+        # Normalize velocity
+        velocity_magnitude = sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
+        if velocity_magnitude > self.speed:
+            self.velocity = [self.velocity[0] / velocity_magnitude * self.speed,
+                             self.velocity[1] / velocity_magnitude * self.speed]
 
-        dzStrFrc_mag = sqrt(dzStrFrc[0] ** 2 + dzStrFrc[1] ** 2)
-        if dzStrFrc_mag <= self.steering:
-            accel = dzStrFrc
+        # Update position
+        new_position = [self.position[0] + self.velocity[0],
+                        self.position[1] + self.velocity[1]]
+
+        # Boundary check
+        if (boundaries[0][0] <= new_position[0] <= boundaries[1][0]) and (
+                boundaries[0][1] <= new_position[1] <= boundaries[1][1]):
+            self.position = new_position
         else:
-            accel = [dzStrFrc[0] / dzStrFrc_mag * self.max_steering, dzStrFrc[1] / dzStrFrc_mag * self.max_steering]
-
-
-        velo = [self.velocity[0] + accel[0] * dt, self.velocity[1] + accel[1] * dt]
-
-        velo_mag = sqrt(velo[0] ** 2 + velo[1] ** 2)
-        if velo_mag <= self.speed:
-            self.velocity = velo
-        else:
-            self.velocity = [velo[0] / velo_mag * self.speed, velo[1] / velo_mag * self.speed]
-
-        # Update position based on the updated velocity, scaled by delta time (dt)
-            # Update position based on velocity
-        new_pos_x = self.position[0] + self.velocity[0]
-        new_pos_y = self.position[1] + self.velocity[1]
-        # self.position = [self.position[0] + self.velocity[0] * dt, self.position[1] + self.velocity[1] * dt]
-
-        # Handle boundary wrapping
-        # Handle boundary wrapping
-        # Check if new position falls within boundaries
-
-        if (boundaries[0][0] <= new_pos_x <= boundaries[1][0]) and (boundaries[0][1] <= new_pos_y <= boundaries[1][1]):
-            # If new position is within boundaries, update position
-            self.position = [new_pos_x, new_pos_y]
-        else:
-            # If new position is out of bounds, invert the direction completely
             self.velocity = [-self.velocity[0], -self.velocity[1]]
-            self.dDir = [-self.dDir[0], -self.dDir[1]]  # Invert the direction vector as well
+            self.direction = [-self.direction[0], -self.direction[1]]
 
+        # Collision check
         if self.check_collisions():
-            # # If new position is out of bounds, invert the direction completely
-            # self.velocity = [-self.velocity[0], -self.velocity[1]]
-            self.dDir = [-self.dDir[0], -self.dDir[1]]  # Invert the direction vector as well
+            self.direction = [-self.direction[0], -self.direction[1]]
             self.angle = degrees(atan2(-self.velocity[1], -self.velocity[0]))
         else:
             self.angle = degrees(atan2(self.velocity[1], self.velocity[0]))
 
         self.acceleration = [0, 0]
 
-
-    def update_time_spend(self):
-        if self.current_task != Tasks.GatherAnts:
-            self.time_spend += 1
-
-    def update_position(self, boundaries):
-
-        self.velocity = [self.velocity[0] + self.acceleration[0], self.velocity[1] + self.acceleration[1]]
-
-        speed = sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
-        if speed > self.speed:
-            self.velocity = [self.velocity[0] * self.speed / speed, self.velocity[1] * self.speed / speed]
-        elif speed < self.speed:
-            self.velocity = [self.velocity[0] * self.speed, self.velocity[1] * self.speed]
-
-        # Normalize velocity to maintain constant speed
-        speed = sqrt(self.velocity[0] ** 2 + self.velocity[1] ** 2)
-        if speed != 0:
-            self.velocity = [self.velocity[0] / speed, self.velocity[1] / speed]
-
-        # Update position based on velocity
-        new_pos_x = self.position[0] + self.velocity[0]
-        new_pos_y = self.position[1] + self.velocity[1]
-
-        # Check if new position falls within boundaries
-        if (boundaries[0][0] <= new_pos_x <= boundaries[1][0]) and (boundaries[0][1] <= new_pos_y <= boundaries[1][1]):
-            # If new position is within boundaries, update position
-            self.position = [new_pos_x, new_pos_y]
-        else:
-            # If new position is out of bounds, reverse the direction
-            self.velocity = [-self.velocity[0], -self.velocity[1]]
-
-        # self.check_boundaries(boundaries)
-
-        if self.velocity != [0, 0]:
-            self.current_direction = atan2(self.velocity[1], self.velocity[0])
-
-        # # Reset acceleration
-        # if self.acceleration != [0,0]:
-        #     self.previous_acc = self.acceleration.copy()
-
-
     def drop_pheromones(self):
+        # Check current task and conditions for dropping pheromones
         if self.current_task == Tasks.FindFood:
             if self.ph_tick == self.p_drop_current and self.ph_max < self.limit_home_p:
+                # Reset drop timer and increase pheromone count
                 self.p_drop_current = 0
                 self.ph_max += 1
-                return Pheromone(self.position, 600, pheromone_type=PheromonesTypes.FoundHome,
-                                 pheromone_strength=self.ph_decay, a_idx=self.idx)
+                # Create and return a pheromone object for finding home
+                return Pheromone(self.position, lifetime=600, pheromone_type=PheromonesTypes.FoundHome, pheromone_strength=self.ph_decay, a_idx=self.idx)
             else:
                 self.p_drop_current += 1
 
         elif self.current_task == Tasks.FindHome:
             if self.ph_tick == self.p_drop_current and self.ph_max < self.limit:
+                # Reset drop timer and increase pheromone count
                 self.p_drop_current = 0
                 self.ph_max += 1
-                return Pheromone(self.position, 1000, pheromone_type=PheromonesTypes.FoundFood,
-                                 pheromone_strength=self.ph_decay, a_idx=self.idx)
+                # Create and return a pheromone object for finding food
+                return Pheromone(self.position, lifetime=1000, pheromone_type=PheromonesTypes.FoundFood,
+                                pheromone_strength =self.ph_decay, a_idx=self.idx)
             else:
                 self.p_drop_current += 1
 

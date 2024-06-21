@@ -15,18 +15,18 @@ class Pheromone:
         self.idx = random.randrange(0,10000)
         self.ant_p = a_idx
         self.position = pos
-        self.life = lifetime
+        self.current_strength = lifetime
         self.max_life = lifetime
-        self.type = pheromone_type
-        self.pheromone_strength = pheromone_strength
+        self.pheromone_type = pheromone_type
+        self.decay_factor = pheromone_strength
 
         #For Helpers Class
         self.width = 4
         self.height = 4
 
     def update_life(self, x=5):
-        self.life -= self.pheromone_strength
+        self.current_strength -= self.decay_factor
 
-        if self.life < 0:
-            self.life = 0
-        return self.life
+        if self.current_strength < 0:
+            self.current_strength = 0
+        return self.current_strength
