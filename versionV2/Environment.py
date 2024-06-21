@@ -14,13 +14,13 @@ class Environment:
     """Create the entire environment or a number x of ants will move
     """
 
-    def __init__(self, ant_number, sim_mode, ants=[]):
+    def __init__(self, ant_number, sim_mode, ants=[], nest=None):
         self.width = 1200
         self.height = 800
         self.spatial_hash_grid = SpatialHashGrid(cell_size=200)
 
         self.initialize_food()
-
+        self.nest = nest
         if sim_mode == "free":
             self.initialize_free_mode(ant_number)
         elif sim_mode == "EXP":
@@ -42,7 +42,8 @@ class Environment:
         self.ant_number = ant_number
         self.sim_loop = 0
 
-        self.nest = Nest([self.width / 3, self.height / 2])
+        if self.nest is None:
+            self.nest = Nest([self.width / 3, self.height / 2])
         self.food = Food(position=[200, 150])
 
         self.spatial_hash_grid.add_object(self.nest)
@@ -51,7 +52,8 @@ class Environment:
         self.ants = [Ant(position=[self.nest.position[0], self.nest.position[1]]) for _ in range(self.ant_number)]
 
     def initialize_exp_mode(self, ants):
-        self.nest = Nest([600, 600])
+        if self.nest is None:
+            self.nest = Nest([600, 600])
         self.spatial_hash_grid.add_object(self.nest)
         self.ants = ants
 
@@ -148,6 +150,9 @@ class Environment:
             food += k.food_delivered
 
         return food
+
+    def set_fitness(self, fitness_value):
+        self.fitness = fitness_value
 
     def run_frames(self, amount_of_runs=2000):
         """"Simulate without drawing. TODO fix the slow calculations. Most likely bloat"""
