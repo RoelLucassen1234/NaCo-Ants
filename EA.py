@@ -14,10 +14,10 @@ class EvolutionaryAlgorithm:
 
         self.simulation_length = simulation_length
 
-        # self.max_steering = max_steering
-        # self.exploration_prob = exploration_prob
-        # self.ph_decay = ph_decay
-        # self.detection_range = detection_range
+        self.max_steering = max_steering
+        self.exploration_prob = exploration_prob
+        self.ph_decay = ph_decay
+        self.detection_range = detection_range
 
         self.steering_genetic = steering_genetic
         self.exploration_genetic = exploration_genetic
@@ -30,14 +30,6 @@ class EvolutionaryAlgorithm:
         self.EPSILON = 0.1
         self.sim_mode = "EXP"
         # random.seed(10)
-
-    # def initial_direction(self) -> float:
-    #     # Generate a random angle between 0 and 2*pi
-    #     angle = random.uniform(0, 2 * math.pi)
-    #     # Adjust the angle to make the movement less jittery
-    #     angle += random.randrange(0, 100)
-    #     return angle
-
     def initial_max_steering(self) -> float:
         prob = random.uniform(0.01, 0.5)
         return prob
@@ -154,11 +146,8 @@ class EvolutionaryAlgorithm:
         else:  # Ant not found home
             loss = ((max_distance - distance_from_home) / max_distance) / 2
 
-        # loss = ants_found_food + (ants_at_food / len(self.ants))
-        # loss = ants_found_home + ((amount_of_runs - steps_to_home) / amount_of_runs)
-        # loss = ant_found_home + (amount_of_runs - steps_to_home)
         loss += 0.0001
-        # print(loss)
+
         return loss
 
     def get_fitness_sum(self, population, env):
